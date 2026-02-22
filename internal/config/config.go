@@ -53,6 +53,10 @@ type config struct {
 	remnawaveHeaders                                          map[string]string
 	trialTrafficLimitResetStrategy                            string
 	trafficLimitResetStrategy                                 string
+	isStripeEnabled                                           bool
+	stripeSecretKey, stripeWebhookSecret, stripeWebhookPath   string
+	stripeSuccessURL, stripeCancelURL                         string
+	stripePrice1, stripePrice3, stripePrice6, stripePrice12   int
 }
 
 var conf config
@@ -280,6 +284,45 @@ func TrafficLimitResetStrategy() string {
 	return conf.trafficLimitResetStrategy
 }
 
+func IsStripeEnabled() bool {
+	return conf.isStripeEnabled
+}
+
+func StripeSecretKey() string {
+	return conf.stripeSecretKey
+}
+
+func StripeWebhookSecret() string {
+	return conf.stripeWebhookSecret
+}
+
+func StripeWebhookPath() string {
+	return conf.stripeWebhookPath
+}
+
+func StripeSuccessURL() string {
+	return conf.stripeSuccessURL
+}
+
+func StripeCancelURL() string {
+	return conf.stripeCancelURL
+}
+
+func StripePrice(month int) int {
+	switch month {
+	case 1:
+		return conf.stripePrice1
+	case 3:
+		return conf.stripePrice3
+	case 6:
+		return conf.stripePrice6
+	case 12:
+		return conf.stripePrice12
+	default:
+		return conf.stripePrice1
+	}
+}
+
 const bytesInGigabyte = 1073741824
 
 func MoynalogUrl() string {
@@ -437,6 +480,19 @@ func InitConfig() {
 		conf.yookasaShopId = mustEnv("YOOKASA_SHOP_ID")
 		conf.yookasaSecretKey = mustEnv("YOOKASA_SECRET_KEY")
 		conf.yookasaEmail = mustEnv("YOOKASA_EMAIL")
+	}
+
+	conf.isStripeEnabled = envBool("STRIPE_ENABLED")
+	if conf.isStripeEnabled {
+		conf.stripeSecretKey = mustEnv("STRIPE_SECRET_KEY")
+		conf.stripeWebhookSecret = mustEnv("STRIPE_WEBHOOK_SECRET")
+		conf.stripeWebhookPath = envStringDefault("STRIPE_WEBHOOK_PATH", "/stripe/webhook")
+		conf.stripeSuccessURL = mustEnv("STRIPE_SUCCESS_URL")
+		conf.stripeCancelURL = mustEnv("STRIPE_CANCEL_URL")
+		conf.stripePrice1 = mustEnvInt("STRIPE_PRICE_1")
+		conf.stripePrice3 = mustEnvInt("STRIPE_PRICE_3")
+		conf.stripePrice6 = mustEnvInt("STRIPE_PRICE_6")
+		conf.stripePrice12 = mustEnvInt("STRIPE_PRICE_12")
 	}
 
 	conf.trafficLimit = mustEnvInt("TRAFFIC_LIMIT")

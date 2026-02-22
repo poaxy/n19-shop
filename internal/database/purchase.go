@@ -19,6 +19,7 @@ const (
 	InvoiceTypeYookasa  InvoiceType = "yookasa"
 	InvoiceTypeTelegram InvoiceType = "telegram"
 	InvoiceTypeTribute  InvoiceType = "tribute"
+	InvoiceTypeStripe   InvoiceType = "stripe"
 )
 
 type PurchaseStatus string
@@ -45,6 +46,8 @@ type Purchase struct {
 	CryptoInvoiceLink *string        `db:"crypto_invoice_url"`
 	YookasaURL        *string        `db:"yookasa_url"`
 	YookasaID         *uuid.UUID     `db:"yookasa_id"`
+	StripeSessionID   *string        `db:"stripe_session_id"`
+	StripeCheckoutURL *string        `db:"stripe_checkout_url"`
 }
 
 type PurchaseRepository struct {
@@ -59,8 +62,8 @@ func NewPurchaseRepository(pool *pgxpool.Pool) *PurchaseRepository {
 
 func (cr *PurchaseRepository) Create(ctx context.Context, purchase *Purchase) (int64, error) {
 	buildInsert := sq.Insert("purchase").
-		Columns("amount", "customer_id", "month", "currency", "expire_at", "status", "invoice_type", "crypto_invoice_id", "crypto_invoice_url", "yookasa_url", "yookasa_id").
-		Values(purchase.Amount, purchase.CustomerID, purchase.Month, purchase.Currency, purchase.ExpireAt, purchase.Status, purchase.InvoiceType, purchase.CryptoInvoiceID, purchase.CryptoInvoiceLink, purchase.YookasaURL, purchase.YookasaID).
+		Columns("amount", "customer_id", "month", "currency", "expire_at", "status", "invoice_type", "crypto_invoice_id", "crypto_invoice_url", "yookasa_url", "yookasa_id", "stripe_session_id", "stripe_checkout_url").
+		Values(purchase.Amount, purchase.CustomerID, purchase.Month, purchase.Currency, purchase.ExpireAt, purchase.Status, purchase.InvoiceType, purchase.CryptoInvoiceID, purchase.CryptoInvoiceLink, purchase.YookasaURL, purchase.YookasaID, purchase.StripeSessionID, purchase.StripeCheckoutURL).
 		Suffix("RETURNING id").
 		PlaceholderFormat(sq.Dollar)
 
@@ -116,6 +119,8 @@ func (cr *PurchaseRepository) FindByInvoiceTypeAndStatus(ctx context.Context, in
 			&purchase.CryptoInvoiceLink,
 			&purchase.YookasaURL,
 			&purchase.YookasaID,
+			&purchase.StripeSessionID,
+			&purchase.StripeCheckoutURL,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan purchase: %w", err)
@@ -157,6 +162,8 @@ func (cr *PurchaseRepository) FindById(ctx context.Context, id int64) (*Purchase
 		&purchase.CryptoInvoiceLink,
 		&purchase.YookasaURL,
 		&purchase.YookasaID,
+		&purchase.StripeSessionID,
+		&purchase.StripeCheckoutURL,
 	)
 
 	if err != nil {
@@ -252,6 +259,7 @@ func (pr *PurchaseRepository) FindLatestActiveTributesByCustomerIDs(
 			&p.ID, &p.Amount, &p.CustomerID, &p.CreatedAt, &p.Month,
 			&p.PaidAt, &p.Currency, &p.ExpireAt, &p.Status, &p.InvoiceType,
 			&p.CryptoInvoiceID, &p.CryptoInvoiceLink, &p.YookasaURL, &p.YookasaID,
+			&p.StripeSessionID, &p.StripeCheckoutURL,
 		); err != nil {
 			return nil, fmt.Errorf("scan purchase: %w", err)
 		}
@@ -291,6 +299,7 @@ func (pr *PurchaseRepository) FindByCustomerIDAndInvoiceTypeLast(
 		&p.ID, &p.Amount, &p.CustomerID, &p.CreatedAt, &p.Month,
 		&p.PaidAt, &p.Currency, &p.ExpireAt, &p.Status, &p.InvoiceType,
 		&p.CryptoInvoiceID, &p.CryptoInvoiceLink, &p.YookasaURL, &p.YookasaID,
+		&p.StripeSessionID, &p.StripeCheckoutURL,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -302,7 +311,6 @@ func (pr *PurchaseRepository) FindByCustomerIDAndInvoiceTypeLast(
 	return p, nil
 }
 
-
 func (pr *PurchaseRepository) FindSuccessfulPaidPurchaseByCustomer(ctx context.Context, customerID int64) (*Purchase, error) {
 	query := sq.Select("*").
 		From("purchase").
@@ -312,6 +320,7 @@ func (pr *PurchaseRepository) FindSuccessfulPaidPurchaseByCustomer(ctx context.C
 			sq.Or{
 				sq.Eq{"invoice_type": InvoiceTypeCrypto},
 				sq.Eq{"invoice_type": InvoiceTypeYookasa},
+				sq.Eq{"invoice_type": InvoiceTypeStripe},
 			},
 		}).
 		OrderBy("paid_at DESC").
@@ -328,6 +337,7 @@ func (pr *PurchaseRepository) FindSuccessfulPaidPurchaseByCustomer(ctx context.C
 		&p.ID, &p.Amount, &p.CustomerID, &p.CreatedAt, &p.Month,
 		&p.PaidAt, &p.Currency, &p.ExpireAt, &p.Status, &p.InvoiceType,
 		&p.CryptoInvoiceID, &p.CryptoInvoiceLink, &p.YookasaURL, &p.YookasaID,
+		&p.StripeSessionID, &p.StripeCheckoutURL,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

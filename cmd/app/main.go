@@ -17,6 +17,7 @@ import (
 	"remnawave-tg-shop-bot/internal/notification"
 	"remnawave-tg-shop-bot/internal/payment"
 	"remnawave-tg-shop-bot/internal/remnawave"
+	"remnawave-tg-shop-bot/internal/stripe"
 	"remnawave-tg-shop-bot/internal/sync"
 	"remnawave-tg-shop-bot/internal/translation"
 	"remnawave-tg-shop-bot/internal/tribute"
@@ -79,12 +80,17 @@ func main() {
 	cryptoPayClient := cryptopay.NewCryptoPayClient(config.CryptoPayUrl(), config.CryptoPayToken())
 	remnawaveClient := remnawave.NewClient(config.RemnawaveUrl(), config.RemnawaveToken(), config.RemnawaveMode())
 	yookasaClient := yookasa.NewClient(config.YookasaUrl(), config.YookasaShopId(), config.YookasaSecretKey())
+	var stripeClient *stripe.Client
+	if config.IsStripeEnabled() {
+		stripeClient = stripe.NewClient(config.StripeSecretKey(), config.StripeWebhookSecret())
+		slog.Info("Stripe payment enabled")
+	}
 	b, err := bot.New(config.TelegramToken(), bot.WithWorkers(3))
 	if err != nil {
 		panic(err)
 	}
 
-	paymentService := payment.NewPaymentService(tm, purchaseRepository, remnawaveClient, customerRepository, b, cryptoPayClient, yookasaClient, referralRepository, cache, moynalogClient)
+	paymentService := payment.NewPaymentService(tm, purchaseRepository, remnawaveClient, customerRepository, b, cryptoPayClient, yookasaClient, referralRepository, cache, moynalogClient, stripeClient)
 
 	cronScheduler := setupInvoiceChecker(purchaseRepository, cryptoPayClient, paymentService, yookasaClient)
 	if cronScheduler != nil {
@@ -159,6 +165,9 @@ func main() {
 	if config.GetTributeWebHookUrl() != "" {
 		tributeHandler := tribute.NewClient(paymentService, customerRepository)
 		mux.Handle(config.GetTributeWebHookUrl(), tributeHandler.WebHookHandler())
+	}
+	if config.IsStripeEnabled() && stripeClient != nil && config.StripeWebhookPath() != "" {
+		mux.Handle(config.StripeWebhookPath(), stripe.WebhookHandler(stripeClient, paymentService.ProcessPurchaseById))
 	}
 
 	srv := &http.Server{

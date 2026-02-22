@@ -19,10 +19,12 @@ purchase and manage subscriptions through Telegram with multiple payment system 
 
 ### Payment Systems
 
-- [YooKassa API](https://yookassa.ru/developers/api)
+The bot supports three payment methods in the flow: **Telegram Stars**, **Stripe** (card, USD), and **CryptoPay** (cryptocurrency).
+
+- [Stripe](https://stripe.com/docs) — card payments in USD; requires a webhook URL (HTTPS, publicly reachable)
 - [CryptoPay API](https://help.crypt.bot/crypto-pay-api)
 - Telegram Stars
-- Tribute
+- (YooKassa and Tribute remain in code but are hidden from the payment flow)
 
 ## Features
 
@@ -47,10 +49,11 @@ purchase and manage subscriptions through Telegram with multiple payment system 
 
 ## API
 
-Web server start on port defined in .env via HEALTH_CHECK_PORT
+Web server starts on the port defined in .env via `HEALTH_CHECK_PORT`.
 
-- /healthcheck
-- /${TRIBUTE_PAYMENT_URL} - webhook for tribute
+- `/healthcheck` — health check
+- `TRIBUTE_WEBHOOK_URL` — webhook for Tribute (if configured)
+- `STRIPE_WEBHOOK_PATH` — webhook for Stripe (if Stripe enabled); must be served over HTTPS and be publicly reachable
 
 ## Environment Variables
 

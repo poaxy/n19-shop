@@ -11,6 +11,7 @@ import (
 	"remnawave-tg-shop-bot/internal/database"
 	"remnawave-tg-shop-bot/internal/moynalog"
 	"remnawave-tg-shop-bot/internal/remnawave"
+	"remnawave-tg-shop-bot/internal/stripe"
 	"remnawave-tg-shop-bot/internal/translation"
 	"remnawave-tg-shop-bot/internal/yookasa"
 	"remnawave-tg-shop-bot/utils"
@@ -31,6 +32,7 @@ type PaymentService struct {
 	referralRepository *database.ReferralRepository
 	cache              *cache.Cache
 	moynalogClient     *moynalog.Client
+	stripeClient       *stripe.Client
 }
 
 func NewPaymentService(
@@ -44,6 +46,7 @@ func NewPaymentService(
 	referralRepository *database.ReferralRepository,
 	cache *cache.Cache,
 	moynalogClient *moynalog.Client,
+	stripeClient *stripe.Client,
 ) *PaymentService {
 	return &PaymentService{
 		purchaseRepository: purchaseRepository,
@@ -56,6 +59,7 @@ func NewPaymentService(
 		referralRepository: referralRepository,
 		cache:              cache,
 		moynalogClient:     moynalogClient,
+		stripeClient:       stripeClient,
 	}
 }
 
@@ -66,6 +70,9 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 	}
 	if purchase == nil {
 		return fmt.Errorf("purchase with crypto invoice id %s not found", utils.MaskHalfInt64(purchaseId))
+	}
+	if purchase.Status == database.PurchaseStatusPaid {
+		return nil // idempotent: already fulfilled (e.g. Stripe webhook retry)
 	}
 
 	customer, err := s.customerRepository.FindById(ctx, purchase.CustomerID)
@@ -222,6 +229,8 @@ func (s PaymentService) CreatePurchase(ctx context.Context, amount float64, mont
 		return s.createTelegramInvoice(ctx, amount, months, customer)
 	case database.InvoiceTypeTribute:
 		return s.createTributeInvoice(ctx, amount, months, customer)
+	case database.InvoiceTypeStripe:
+		return s.createStripeInvoice(ctx, amount, months, customer)
 	default:
 		return "", 0, fmt.Errorf("unknown invoice type: %s", invoiceType)
 	}
@@ -352,6 +361,43 @@ func (s PaymentService) createYookasaInvoice(ctx context.Context, amount float64
 	return invoice.Confirmation.ConfirmationURL, purchaseId, nil
 }
 
+// createStripeInvoice creates a pending Stripe purchase and a Checkout Session; returns the checkout URL.
+func (s PaymentService) createStripeInvoice(ctx context.Context, amount float64, months int, customer *database.Customer) (url string, purchaseId int64, err error) {
+	if s.stripeClient == nil {
+		return "", 0, errors.New("stripe client not configured")
+	}
+	amountCents := config.StripePrice(months)
+	purchaseId, err = s.purchaseRepository.Create(ctx, &database.Purchase{
+		InvoiceType: database.InvoiceTypeStripe,
+		Status:      database.PurchaseStatusNew,
+		Amount:      float64(amountCents) / 100,
+		Currency:    "USD",
+		CustomerID:  customer.ID,
+		Month:       months,
+	})
+	if err != nil {
+		slog.Error("Error creating purchase for Stripe", "error", err)
+		return "", 0, err
+	}
+
+	sessionID, checkoutURL, err := s.stripeClient.CreateCheckoutSession(ctx, amountCents, months, purchaseId, config.StripeSuccessURL(), config.StripeCancelURL())
+	if err != nil {
+		slog.Error("Error creating Stripe checkout session", "error", err)
+		return "", 0, err
+	}
+
+	updates := map[string]interface{}{
+		"stripe_session_id":   sessionID,
+		"stripe_checkout_url": checkoutURL,
+		"status":             database.PurchaseStatusPending,
+	}
+	if err = s.purchaseRepository.UpdateFields(ctx, purchaseId, updates); err != nil {
+		slog.Error("Error updating purchase with Stripe session", "error", err)
+		return "", 0, err
+	}
+	return checkoutURL, purchaseId, nil
+}
+
 func (s PaymentService) createTelegramInvoice(ctx context.Context, amount float64, months int, customer *database.Customer) (url string, purchaseId int64, err error) {
 	purchaseId, err = s.purchaseRepository.Create(ctx, &database.Purchase{
 		InvoiceType: database.InvoiceTypeTelegram,
@@ -363,7 +409,7 @@ func (s PaymentService) createTelegramInvoice(ctx context.Context, amount float6
 	})
 	if err != nil {
 		slog.Error("Error creating purchase", "error", err)
-		return "", 0, nil
+		return "", 0, err
 	}
 
 	invoiceUrl, err := s.telegramBot.CreateInvoiceLink(ctx, &bot.CreateInvoiceLinkParams{

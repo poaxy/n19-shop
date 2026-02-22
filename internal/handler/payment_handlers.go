@@ -77,9 +77,9 @@ func (h Handler) BuyCallbackHandler(ctx context.Context, b *bot.Bot, update *mod
 	}
 }
 
-// hasDirectPaymentMethods returns true if any of Crypto, YooKassa, or Tribute is enabled.
+// hasDirectPaymentMethods returns true if any of Stripe or Crypto is enabled (direct payment options shown in UI).
 func hasDirectPaymentMethods() bool {
-	return config.IsCryptoPayEnabled() || config.IsYookasaEnabled() || config.GetTributeWebHookUrl() != ""
+	return config.IsStripeEnabled() || config.IsCryptoPayEnabled()
 }
 
 // shouldShowStarsButton returns true if the Stars payment option should be shown (Stars enabled and, when required, user has a prior paid purchase).
@@ -163,7 +163,7 @@ func (h Handler) SellCallbackHandler(ctx context.Context, b *bot.Bot, update *mo
 	}
 }
 
-// appendPaymentMethodButtons appends all enabled payment methods (Crypto, YooKassa, Stars, Tribute) to keyboard.
+// appendPaymentMethodButtons appends enabled payment methods (Crypto, Stripe, Stars only) to keyboard.
 func (h Handler) appendPaymentMethodButtons(ctx context.Context, keyboard *[][]models.InlineKeyboardButton, langCode, month, amount string, chatID int64) {
 	if config.IsCryptoPayEnabled() {
 		*keyboard = append(*keyboard, []models.InlineKeyboardButton{
@@ -171,9 +171,9 @@ func (h Handler) appendPaymentMethodButtons(ctx context.Context, keyboard *[][]m
 		})
 	}
 
-	if config.IsYookasaEnabled() {
+	if config.IsStripeEnabled() {
 		*keyboard = append(*keyboard, []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(langCode, "card_button"), CallbackData: fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypeYookasa, amount)},
+			{Text: h.translation.GetText(langCode, "stripe_button"), CallbackData: fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypeStripe, amount)},
 		})
 	}
 
@@ -182,30 +182,19 @@ func (h Handler) appendPaymentMethodButtons(ctx context.Context, keyboard *[][]m
 			{Text: h.translation.GetText(langCode, "stars_button"), CallbackData: fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypeTelegram, amount)},
 		})
 	}
-
-	if config.GetTributeWebHookUrl() != "" {
-		*keyboard = append(*keyboard, []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(langCode, "tribute_button"), URL: config.GetTributePaymentUrl()},
-		})
-	}
 }
 
-// buildDirectPaymentKeyboard returns inline keyboard rows for direct payment methods only (Crypto, Card, Tribute).
+// buildDirectPaymentKeyboard returns inline keyboard rows for direct payment methods only (Stripe, Crypto).
 func (h Handler) buildDirectPaymentKeyboard(langCode, month, amount string) [][]models.InlineKeyboardButton {
 	var rows [][]models.InlineKeyboardButton
+	if config.IsStripeEnabled() {
+		rows = append(rows, []models.InlineKeyboardButton{
+			{Text: h.translation.GetText(langCode, "stripe_button"), CallbackData: fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypeStripe, amount)},
+		})
+	}
 	if config.IsCryptoPayEnabled() {
 		rows = append(rows, []models.InlineKeyboardButton{
 			{Text: h.translation.GetText(langCode, "crypto_button"), CallbackData: fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypeCrypto, amount)},
-		})
-	}
-	if config.IsYookasaEnabled() {
-		rows = append(rows, []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(langCode, "card_button"), CallbackData: fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypeYookasa, amount)},
-		})
-	}
-	if config.GetTributeWebHookUrl() != "" {
-		rows = append(rows, []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(langCode, "tribute_button"), URL: config.GetTributePaymentUrl()},
 		})
 	}
 	return rows
@@ -246,9 +235,12 @@ func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update 
 	invoiceType := database.InvoiceType(callbackQuery["invoiceType"])
 
 	var price int
-	if invoiceType == database.InvoiceTypeTelegram {
+	switch invoiceType {
+	case database.InvoiceTypeTelegram:
 		price = config.StarsPrice(month)
-	} else {
+	case database.InvoiceTypeStripe:
+		price = config.StripePrice(month)
+	default:
 		price = config.Price(month)
 	}
 
