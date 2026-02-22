@@ -28,7 +28,7 @@ The bot supports three payment methods in the flow: **Telegram Stars**, **Stripe
 
 ## Features
 
-- Purchase VPN subscriptions with different payment methods (bank cards, cryptocurrency)
+- Purchase VPN subscriptions with different payment methods (Telegram Stars, Stripe for cards in USD, CryptoPay for cryptocurrency)
 - Multiple subscription plans (1, 3, 6, 12 months)
 - Automated subscription management
 - **Subscription Notifications**: The bot automatically sends notifications to users 3 days before their subscription
@@ -97,6 +97,16 @@ The application requires the following environment variables to be set:
 | `TRAFFIC_LIMIT`          | Maximum allowed traffic in gb (0 to set unlimited)                                                                                         |
 | `TELEGRAM_STARS_ENABLED` | Enable/disable Telegram Stars payment method (true/false)                                                                                  |
 | `REQUIRE_PAID_PURCHASE_FOR_STARS` | Require successful cryptocurrency or card payment before allowing Telegram Stars (true/false). Default: false |
+| `STRIPE_ENABLED`          | Enable/disable Stripe payment method (true/false)                                                                                        |
+| `STRIPE_SECRET_KEY`       | Stripe API secret key (e.g. sk_test_... or sk_live_...) — required when Stripe enabled                                                      |
+| `STRIPE_WEBHOOK_SECRET`   | Stripe webhook signing secret (whsec_...) — required when Stripe enabled                                                                   |
+| `STRIPE_WEBHOOK_PATH`     | HTTP path for the Stripe webhook (e.g. /stripe/webhook). Default: /stripe/webhook                                                          |
+| `STRIPE_SUCCESS_URL`      | URL to redirect customers after successful payment (HTTPS)                                                                                 |
+| `STRIPE_CANCEL_URL`       | URL to redirect customers if they cancel payment (HTTPS)                                                                                   |
+| `STRIPE_PRICE_1`          | Price in USD cents for 1 month (e.g. 999 = $9.99)                                                                                           |
+| `STRIPE_PRICE_3`          | Price in USD cents for 3 months                                                                                                            |
+| `STRIPE_PRICE_6`          | Price in USD cents for 6 months                                                                                                             |
+| `STRIPE_PRICE_12`         | Price in USD cents for 12 months                                                                                                            |
 | `SERVER_STATUS_URL`      | URL to server status page (optional) - if not set, button will not be displayed                                                            |
 | `SUPPORT_URL`            | URL to support chat or page (optional) - if not set, button will not be displayed                                                          |
 | `FEEDBACK_URL`           | URL to feedback/reviews page (optional) - if not set, button will not be displayed                                                         |
@@ -116,6 +126,17 @@ The application requires the following environment variables to be set:
 | `TRIBUTE_WEBHOOK_URL`    | Path for webhook handler. Example: /example (https://www.uuidgenerator.net/version4)                                                       |
 | `TRIBUTE_API_KEY`        | Api key, which can be obtained via settings in Tribute app.                                                                                |
 | `TRIBUTE_PAYMENT_URL`    | You payment url for Tribute. (Subscription telegram link)                                                                                  |
+
+## Payment flow
+
+When a user taps **Buy** and selects a plan (1, 3, 6, or 12 months), they choose a payment method:
+
+1. **Telegram Stars** — pay with Telegram Stars (in-app); flow unchanged.
+2. **Direct payment** — then choose:
+   - **Stripe** — card payment in USD; user is sent to Stripe Checkout and redirected back via your success/cancel URLs.
+   - **Crypto** — cryptocurrency via CryptoPay.
+
+Only the payment methods you enable (Stars, Stripe, Crypto) appear. YooKassa and Tribute are not shown in the flow but remain in the codebase.
 
 ## User Interface
 
@@ -223,6 +244,46 @@ docker compose up -d
 - Health: `curl http://localhost:8080/healthcheck` (use the port set in `HEALTH_CHECK_PORT` in `.env`, default 8080).
 
 To use a pre-built image from a registry instead of building locally, set the bot service `image` in `docker-compose.yaml` to your image (e.g. `ghcr.io/your-org/n19-shop-bot:latest`) and remove or comment out the `build` section.
+
+## Stripe payment setup instructions
+
+> [!WARNING]
+> Stripe requires a **public HTTPS URL** for the webhook. Use a domain with a valid SSL certificate (e.g. `https://bot.example.com`). Webhooks will not work on localhost or a bare IP.
+
+### How it works
+
+1. User selects a plan and chooses **Direct payment** → **Stripe**.
+2. The bot creates a Stripe Checkout Session and shows a **Pay** button linking to Stripe’s hosted page.
+3. After the user pays, Stripe sends a `checkout.session.completed` webhook to your server.
+4. The bot verifies the webhook signature, reads `purchase_id` from metadata, and activates the subscription (same as other payment methods).
+
+### Step-by-step setup
+
+1. **Stripe account and keys**
+   - Sign up at [Stripe](https://stripe.com) and get your **Secret key** (Dashboard → Developers → API keys): `sk_test_...` (test) or `sk_live_...` (live).
+   - Create a **Webhook endpoint** (Dashboard → Developers → Webhooks): set the URL to `https://your-domain.com/stripe/webhook` (or the path you set in `STRIPE_WEBHOOK_PATH`).
+   - Select the event **checkout.session.completed** and copy the **Signing secret** (`whsec_...`).
+
+2. **Success and cancel URLs**
+   - Choose where users land after payment: e.g. a simple “Thank you” page or a link to your bot (`https://t.me/YourBot`).
+   - Set `STRIPE_SUCCESS_URL` and `STRIPE_CANCEL_URL` in `.env` (must be HTTPS).
+
+3. **Configure `.env`**
+   - `STRIPE_ENABLED=true`
+   - `STRIPE_SECRET_KEY=sk_test_...` (or live key)
+   - `STRIPE_WEBHOOK_SECRET=whsec_...`
+   - `STRIPE_WEBHOOK_PATH=/stripe/webhook` (must match the path in your Stripe webhook URL)
+   - `STRIPE_SUCCESS_URL=https://your-domain.com/success` (or your bot link)
+   - `STRIPE_CANCEL_URL=https://your-domain.com/cancel`
+   - `STRIPE_PRICE_1`, `STRIPE_PRICE_3`, `STRIPE_PRICE_6`, `STRIPE_PRICE_12` — prices in **USD cents** (e.g. `999` = $9.99).
+
+4. **Reverse proxy**
+   - Ensure your reverse proxy (e.g. Traefik, nginx) forwards the path `STRIPE_WEBHOOK_PATH` to the bot’s HTTP server (same port as `HEALTH_CHECK_PORT`).
+
+5. **Restart the bot**
+   ```bash
+   docker compose down && docker compose up -d
+   ```
 
 ## Tribute payment setup instructions
 
