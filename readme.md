@@ -182,23 +182,44 @@ Trial users can be assigned to different squads than regular paying users:
 
 ## Setup Instructions
 
-1. Clone the repository
+### Install with Docker (recommended)
+
+1. **Clone the repository**
 
 ```bash
 git clone https://github.com/Jolymmiels/remnawave-telegram-shop && cd remnawave-telegram-shop
 ```
 
-2. Create a `.env` file in the root directory with all the environment variables listed above
+2. **Configure environment**
 
 ```bash
-mv .env.sample .env
+cp .env.sample .env
+# Edit .env and set TELEGRAM_TOKEN, REMNAWAVE_*, DATABASE_URL, etc.
 ```
 
-3. Run the bot:
+3. **Build the Docker image and start**
+
+The compose file builds the bot image from source by default. From the project root:
 
 ```bash
+docker compose build
 docker compose up -d
 ```
+
+Or build the image manually (optional), then run:
+
+```bash
+./scripts/build-image.sh          # tag as n19-shop-bot:latest (version: dev)
+./scripts/build-image.sh 1.0.0    # tag with version 1.0.0
+docker compose up -d
+```
+
+4. **Verify**
+
+- Bot: send `/start` to your bot in Telegram.
+- Health: `curl http://localhost:8080/healthcheck` (use the port set in `HEALTH_CHECK_PORT` in `.env`, default 8080).
+
+To use a pre-built image from a registry instead of building locally, set the bot service `image` in `docker-compose.yaml` to your image (e.g. `ghcr.io/your-org/n19-shop-bot:latest`) and remove or comment out the `build` section.
 
 ## Tribute payment setup instructions
 

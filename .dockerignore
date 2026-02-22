@@ -100,6 +100,9 @@ fabric.properties
 go.work
 go.work.sum
 
-# env file
+# env file (never bake into image)
 .env
+
+# Git (reduces build context)
+.git
 
