@@ -73,8 +73,41 @@ func (h Handler) BuyCallbackHandler(ctx context.Context, b *bot.Bot, update *mod
 	})
 
 	if err != nil {
-		slog.Error("Error sending buy message", "error", err)
+		slog.Error("Error editing message for buy", "error", err)
 	}
+}
+
+// hasDirectPaymentMethods returns true if any of Crypto, YooKassa, or Tribute is enabled.
+func hasDirectPaymentMethods() bool {
+	return config.IsCryptoPayEnabled() || config.IsYookasaEnabled() || config.GetTributeWebHookUrl() != ""
+}
+
+// shouldShowStarsButton returns true if the Stars payment option should be shown (Stars enabled and, when required, user has a prior paid purchase).
+func (h Handler) shouldShowStarsButton(ctx context.Context, chatID int64) bool {
+	if !config.IsTelegramStarsEnabled() {
+		return false
+	}
+	if !config.RequirePaidPurchaseForStars() {
+		return true
+	}
+	customer, err := h.customerRepository.FindByTelegramId(ctx, chatID)
+	if err != nil || customer == nil {
+		return false
+	}
+	paidPurchase, err := h.purchaseRepository.FindSuccessfulPaidPurchaseByCustomer(ctx, customer.ID)
+	if err != nil {
+		return false
+	}
+	return paidPurchase != nil
+}
+
+// shouldShowPaymentMethodChoice returns true when we show "Telegram Stars" vs "Direct payment" first.
+func (h Handler) shouldShowPaymentMethodChoice(ctx context.Context, chatID int64) bool {
+	if !config.IsTelegramStarsEnabled() || !hasDirectPaymentMethods() {
+		return false
+	}
+	// Only use two-step when user can see Stars; otherwise show direct methods only.
+	return h.shouldShowStarsButton(ctx, chatID)
 }
 
 func (h Handler) SellCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -86,52 +119,36 @@ func (h Handler) SellCallbackHandler(ctx context.Context, b *bot.Bot, update *mo
 
 	var keyboard [][]models.InlineKeyboardButton
 
-	if config.IsCryptoPayEnabled() {
-		keyboard = append(keyboard, []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(langCode, "crypto_button"), CallbackData: fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypeCrypto, amount)},
-		})
-	}
-
-	if config.IsYookasaEnabled() {
-		keyboard = append(keyboard, []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(langCode, "card_button"), CallbackData: fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypeYookasa, amount)},
-		})
-	}
-
-	if config.IsTelegramStarsEnabled() {
-		shouldShowStarsButton := true
-
-		if config.RequirePaidPurchaseForStars() {
-			customer, err := h.customerRepository.FindByTelegramId(ctx, callback.Chat.ID)
-			if err != nil {
-				slog.Error("Error finding customer for stars check", "error", err)
-				shouldShowStarsButton = false
-			} else if customer != nil {
-				paidPurchase, err := h.purchaseRepository.FindSuccessfulPaidPurchaseByCustomer(ctx, customer.ID)
-				if err != nil {
-					slog.Error("Error checking paid purchase", "error", err)
-					shouldShowStarsButton = false
-				} else if paidPurchase == nil {
-					shouldShowStarsButton = false
-				}
-			} else {
-				shouldShowStarsButton = false
-			}
-		}
-
-		if shouldShowStarsButton {
+	// When both Stars and direct methods exist, show "Telegram Stars" vs "Direct payment" first.
+	if h.shouldShowPaymentMethodChoice(ctx, callback.Chat.ID) {
+		shouldShowStars := h.shouldShowStarsButton(ctx, callback.Chat.ID)
+		if shouldShowStars {
 			keyboard = append(keyboard, []models.InlineKeyboardButton{
 				{Text: h.translation.GetText(langCode, "stars_button"), CallbackData: fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypeTelegram, amount)},
 			})
 		}
-	}
-
-	if config.GetTributeWebHookUrl() != "" {
 		keyboard = append(keyboard, []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(langCode, "tribute_button"), URL: config.GetTributePaymentUrl()},
+			{Text: h.translation.GetText(langCode, "direct_payment_button"), CallbackData: fmt.Sprintf("%s?month=%s&amount=%s", CallbackDirect, month, amount)},
 		})
+		keyboard = append(keyboard, []models.InlineKeyboardButton{
+			{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackBuy},
+		})
+
+		_, err := b.EditMessageReplyMarkup(ctx, &bot.EditMessageReplyMarkupParams{
+			ChatID:    callback.Chat.ID,
+			MessageID: callback.ID,
+			ReplyMarkup: models.InlineKeyboardMarkup{
+				InlineKeyboard: keyboard,
+			},
+		})
+		if err != nil {
+			slog.Error("Error editing message for payment method choice", "error", err)
+		}
+		return
 	}
 
+	// Otherwise show payment methods directly (only direct methods, or only Stars when no direct).
+	h.appendPaymentMethodButtons(ctx, &keyboard, langCode, month, amount, callback.Chat.ID)
 	keyboard = append(keyboard, []models.InlineKeyboardButton{
 		{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackBuy},
 	})
@@ -139,13 +156,81 @@ func (h Handler) SellCallbackHandler(ctx context.Context, b *bot.Bot, update *mo
 	_, err := b.EditMessageReplyMarkup(ctx, &bot.EditMessageReplyMarkupParams{
 		ChatID:    callback.Chat.ID,
 		MessageID: callback.ID,
-		ReplyMarkup: models.InlineKeyboardMarkup{
-			InlineKeyboard: keyboard,
-		},
+		ReplyMarkup: models.InlineKeyboardMarkup{InlineKeyboard: keyboard},
+	})
+	if err != nil {
+		slog.Error("Error editing message for payment methods", "error", err)
+	}
+}
+
+// appendPaymentMethodButtons appends all enabled payment methods (Crypto, YooKassa, Stars, Tribute) to keyboard.
+func (h Handler) appendPaymentMethodButtons(ctx context.Context, keyboard *[][]models.InlineKeyboardButton, langCode, month, amount string, chatID int64) {
+	if config.IsCryptoPayEnabled() {
+		*keyboard = append(*keyboard, []models.InlineKeyboardButton{
+			{Text: h.translation.GetText(langCode, "crypto_button"), CallbackData: fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypeCrypto, amount)},
+		})
+	}
+
+	if config.IsYookasaEnabled() {
+		*keyboard = append(*keyboard, []models.InlineKeyboardButton{
+			{Text: h.translation.GetText(langCode, "card_button"), CallbackData: fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypeYookasa, amount)},
+		})
+	}
+
+	if config.IsTelegramStarsEnabled() && h.shouldShowStarsButton(ctx, chatID) {
+		*keyboard = append(*keyboard, []models.InlineKeyboardButton{
+			{Text: h.translation.GetText(langCode, "stars_button"), CallbackData: fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypeTelegram, amount)},
+		})
+	}
+
+	if config.GetTributeWebHookUrl() != "" {
+		*keyboard = append(*keyboard, []models.InlineKeyboardButton{
+			{Text: h.translation.GetText(langCode, "tribute_button"), URL: config.GetTributePaymentUrl()},
+		})
+	}
+}
+
+// buildDirectPaymentKeyboard returns inline keyboard rows for direct payment methods only (Crypto, Card, Tribute).
+func (h Handler) buildDirectPaymentKeyboard(langCode, month, amount string) [][]models.InlineKeyboardButton {
+	var rows [][]models.InlineKeyboardButton
+	if config.IsCryptoPayEnabled() {
+		rows = append(rows, []models.InlineKeyboardButton{
+			{Text: h.translation.GetText(langCode, "crypto_button"), CallbackData: fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypeCrypto, amount)},
+		})
+	}
+	if config.IsYookasaEnabled() {
+		rows = append(rows, []models.InlineKeyboardButton{
+			{Text: h.translation.GetText(langCode, "card_button"), CallbackData: fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypeYookasa, amount)},
+		})
+	}
+	if config.GetTributeWebHookUrl() != "" {
+		rows = append(rows, []models.InlineKeyboardButton{
+			{Text: h.translation.GetText(langCode, "tribute_button"), URL: config.GetTributePaymentUrl()},
+		})
+	}
+	return rows
+}
+
+// DirectPaymentCallbackHandler shows direct payment options (Crypto, Card, Tribute) and Back when user chose "Direct payment".
+func (h Handler) DirectPaymentCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	callback := update.CallbackQuery.Message.Message
+	callbackQuery := parseCallbackData(update.CallbackQuery.Data)
+	langCode := update.CallbackQuery.From.LanguageCode
+	month := callbackQuery["month"]
+	amount := callbackQuery["amount"]
+
+	keyboard := h.buildDirectPaymentKeyboard(langCode, month, amount)
+	keyboard = append(keyboard, []models.InlineKeyboardButton{
+		{Text: h.translation.GetText(langCode, "back_button"), CallbackData: fmt.Sprintf("%s?month=%s&amount=%s", CallbackSell, month, amount)},
 	})
 
+	_, err := b.EditMessageReplyMarkup(ctx, &bot.EditMessageReplyMarkupParams{
+		ChatID:    callback.Chat.ID,
+		MessageID: callback.ID,
+		ReplyMarkup: models.InlineKeyboardMarkup{InlineKeyboard: keyboard},
+	})
 	if err != nil {
-		slog.Error("Error sending sell message", "error", err)
+		slog.Error("Error editing message for direct payment", "error", err)
 	}
 }
 
@@ -175,19 +260,22 @@ func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update 
 		return
 	}
 	if customer == nil {
-		slog.Error("customer not exist", "chatID", callback.Chat.ID, "error", err)
+		slog.Error("Customer not found for payment", "chatID", callback.Chat.ID)
 		return
 	}
 
 	ctxWithUsername := context.WithValue(ctx, "username", update.CallbackQuery.From.Username)
-	paymentURL, purchaseId, err := h.paymentService.CreatePurchase(ctxWithUsername, float64(price), month, customer, invoiceType)
+	paymentURL, purchaseID, err := h.paymentService.CreatePurchase(ctxWithUsername, float64(price), month, customer, invoiceType)
 	if err != nil {
 		slog.Error("Error creating payment", "error", err)
 		return
 	}
 
 	langCode := update.CallbackQuery.From.LanguageCode
-
+	backCallback := fmt.Sprintf("%s?month=%d&amount=%d", CallbackSell, month, price)
+	if invoiceType != database.InvoiceTypeTelegram && hasDirectPaymentMethods() && config.IsTelegramStarsEnabled() {
+		backCallback = fmt.Sprintf("%s?month=%d&amount=%d", CallbackDirect, month, price)
+	}
 	message, err := b.EditMessageReplyMarkup(ctx, &bot.EditMessageReplyMarkupParams{
 		ChatID:    callback.Chat.ID,
 		MessageID: callback.ID,
@@ -195,16 +283,16 @@ func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update 
 			InlineKeyboard: [][]models.InlineKeyboardButton{
 				{
 					{Text: h.translation.GetText(langCode, "pay_button"), URL: paymentURL},
-					{Text: h.translation.GetText(langCode, "back_button"), CallbackData: fmt.Sprintf("%s?month=%d&amount=%d", CallbackSell, month, price)},
+					{Text: h.translation.GetText(langCode, "back_button"), CallbackData: backCallback},
 				},
 			},
 		},
 	})
 	if err != nil {
-		slog.Error("Error updating sell message", "error", err)
+		slog.Error("Error editing message for payment", "error", err)
 		return
 	}
-	h.cache.Set(purchaseId, message.ID)
+	h.cache.Set(purchaseID, message.ID)
 }
 
 func (h Handler) PreCheckoutCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -219,35 +307,34 @@ func (h Handler) PreCheckoutCallbackHandler(ctx context.Context, b *bot.Bot, upd
 
 func (h Handler) SuccessPaymentHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	payload := strings.Split(update.Message.SuccessfulPayment.InvoicePayload, "&")
-	purchaseId, err := strconv.Atoi(payload[0])
-	username := payload[1]
-	if err != nil {
-		slog.Error("Error parsing purchase id", "error", err)
+	if len(payload) < 2 {
+		slog.Error("Invalid payment payload: missing parts", "payload", update.Message.SuccessfulPayment.InvoicePayload)
 		return
 	}
-
-	ctxWithUsername := context.WithValue(ctx, "username", username)
-	err = h.paymentService.ProcessPurchaseById(ctxWithUsername, int64(purchaseId))
+	purchaseID, err := strconv.ParseInt(payload[0], 10, 64)
 	if err != nil {
-		slog.Error("Error processing purchase", "error", err)
+		slog.Error("Error parsing purchase id from payload", "error", err, "payload", payload[0])
+		return
+	}
+	username := payload[1]
+	ctxWithUsername := context.WithValue(ctx, "username", username)
+	if err := h.paymentService.ProcessPurchaseById(ctxWithUsername, purchaseID); err != nil {
+		slog.Error("Error processing purchase", "error", err, "purchaseID", purchaseID)
 	}
 }
 
+// parseCallbackData parses callback data in the form "prefix?key1=val1&key2=val2" into a map.
 func parseCallbackData(data string) map[string]string {
 	result := make(map[string]string)
-
 	parts := strings.Split(data, "?")
 	if len(parts) < 2 {
 		return result
 	}
-
-	params := strings.Split(parts[1], "&")
-	for _, param := range params {
+	for _, param := range strings.Split(parts[1], "&") {
 		kv := strings.SplitN(param, "=", 2)
 		if len(kv) == 2 {
 			result[kv[0]] = kv[1]
 		}
 	}
-
 	return result
 }
