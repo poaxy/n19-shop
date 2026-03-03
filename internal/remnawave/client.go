@@ -162,7 +162,7 @@ func (r *Client) CreateOrUpdateUser(ctx context.Context, customerId int64, teleg
 	return r.updateUser(ctx, existingUser, trafficLimit, days)
 }
 
-func selectInternalSquads(ctx context.Context, squads *remapi.InternalSquadsResponseDto, isTrialUser bool) []uuid.UUID {
+func selectInternalSquads(ctx context.Context, resp *remapi.InternalSquadsResponse, isTrialUser bool) []uuid.UUID {
 	selectedSquads := config.SquadUUIDs()
 	if isTrialUser {
 		selectedSquads = config.TrialInternalSquads()
@@ -173,6 +173,8 @@ func selectInternalSquads(ctx context.Context, squads *remapi.InternalSquadsResp
 			}
 		}
 	}
+
+	squads := resp.GetResponse()
 
 	squadId := make([]uuid.UUID, 0, len(selectedSquads))
 	for _, squad := range squads.GetInternalSquads() {
@@ -197,9 +199,9 @@ func (r *Client) updateUser(ctx context.Context, existingUser *remapi.User, traf
 		return nil, err
 	}
 
-	squads := resp.(*remapi.InternalSquadsResponse).GetResponse()
+	raw := resp.(*remapi.InternalSquadsResponse)
 
-	squadId := selectInternalSquads(ctx, squads, false)
+	squadId := selectInternalSquads(ctx, raw, false)
 
 	userUpdate := &remapi.UpdateUserRequestDto{
 		UUID:                 remapi.NewOptUUID(existingUser.UUID),
@@ -250,9 +252,9 @@ func (r *Client) createUser(ctx context.Context, customerId int64, telegramId in
 		return nil, err
 	}
 
-	squads := resp.(*remapi.InternalSquadsResponse).GetResponse()
+	raw := resp.(*remapi.InternalSquadsResponse)
 
-	squadId := selectInternalSquads(ctx, squads, isTrialUser)
+	squadId := selectInternalSquads(ctx, raw, isTrialUser)
 
 	externalSquad := config.ExternalSquadUUID()
 	if isTrialUser {
