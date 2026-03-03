@@ -3,11 +3,13 @@ package handler
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"time"
+
 	"remnawave-tg-shop-bot/internal/config"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
-	"log/slog"
 )
 
 func (h Handler) ProfileCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -31,10 +33,6 @@ func (h Handler) ProfileCallbackHandler(ctx context.Context, b *bot.Bot, update 
 		username = "—"
 	}
 
-	var plan string
-	// Plan is not persisted yet; we keep this placeholder for future persistence.
-	plan = h.translation.GetText(langCode, "profile_plan_none")
-
 	var expireAtStr string
 	if customer != nil && customer.ExpireAt != nil {
 		expireAtStr = customer.ExpireAt.Format("02.01.2006 15:04")
@@ -42,13 +40,18 @@ func (h Handler) ProfileCallbackHandler(ctx context.Context, b *bot.Bot, update 
 		expireAtStr = h.translation.GetText(langCode, "profile_no_subscription")
 	}
 
+	plan := h.translation.GetText(langCode, "profile_plan_none")
+	if customer != nil && customer.SubscriptionLink != nil && customer.ExpireAt != nil && customer.ExpireAt.After(time.Now()) {
+		plan = h.translation.GetText(langCode, "profile_plan_free")
+	}
+
 	text := fmt.Sprintf(
 		h.translation.GetText(langCode, "profile_info"),
 		cb.From.ID,
 		username,
 		role,
-		expireAtStr,
 		plan,
+		expireAtStr,
 	)
 
 	_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{

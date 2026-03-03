@@ -45,7 +45,8 @@
   "tribute_cancelled" : "Tribute cancelled",
   "access_denied": "⚠️ Access denied. Please update your profile information.",
   "profile_button": "👤 Profile",
-  "profile_info": "👤 <b>Your profile</b>\n\n<b>Telegram ID:</b> <code>%d</code>\n<b>Username:</b> @%s\n<b>Role:</b> %s\n<b>Subscription:</b> %s\n<b>Plan:</b> %s",
+  "profile_info": "👤 <b>Your profile</b>\n\n<b>Telegram ID:</b> <code>%d</code>\n<b>Username:</b> @%s\n<b>Role:</b> %s\n<b>Plan:</b> %s\n<b>Subscription:</b> %s",
   "profile_plan_none": "No active plan",
+  "profile_plan_free": "Free tier",
   "profile_no_subscription": "No active subscription"
 }
