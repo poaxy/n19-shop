@@ -4,10 +4,14 @@
   "connect_button": "🔌 Connect",
   "back_button": "🔙 Back",
   "pricing_info": "Russian bank cards and cryptocurrency are accepted for payment",
-  "month_1": "1 month",
+  "pricing_info_plans": "Choose a subscription plan:",
+  "pricing_info_periods": "Choose the subscription period:",
+  "plan_lite_button": "🌙 Lite – essential VPN access",
+  "plan_premium_button": "🚀 Max – all servers & locations",
+  "month_1": "📅 1 month",
   "month_3": "3 months",
   "month_6": "6 months",
-  "month_12": "12 months",
+  "month_12": "📆 12 months",
   "crypto_button": "₿ Crypto",
   "card_button": "💳 Bank card",
   "pay_button": "💸 Pay",
@@ -39,5 +43,9 @@
   "web_app_button_text": "Connect",
   "tribute_button": "Tribute",
   "tribute_cancelled" : "Tribute cancelled",
-  "access_denied": "⚠️ Access denied. Please update your profile information."
+  "access_denied": "⚠️ Access denied. Please update your profile information.",
+  "profile_button": "👤 Profile",
+  "profile_info": "👤 <b>Your profile</b>\n\n<b>Telegram ID:</b> <code>%d</code>\n<b>Username:</b> @%s\n<b>Role:</b> %s\n<b>Subscription:</b> %s\n<b>Plan:</b> %s",
+  "profile_plan_none": "No active plan",
+  "profile_no_subscription": "No active subscription"
 }

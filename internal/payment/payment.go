@@ -296,12 +296,13 @@ func (s PaymentService) createCryptoInvoice(ctx context.Context, amount float64,
 		return "", 0, err
 	}
 
+	plan, _ := ctx.Value("plan").(string)
 	invoice, err := s.cryptoPayClient.CreateInvoice(&cryptopay.InvoiceRequest{
 		CurrencyType:   "fiat",
 		Fiat:           "RUB",
 		Amount:         fmt.Sprintf("%d", int(amount)),
 		AcceptedAssets: "USDT",
-		Payload:        fmt.Sprintf("purchaseId=%d&username=%s", purchaseId, ctx.Value("username")),
+		Payload:        fmt.Sprintf("purchaseId=%d&username=%s&plan=%s", purchaseId, ctx.Value("username"), plan),
 		Description:    fmt.Sprintf("Subscription on %d month", months),
 		PaidBtnName:    "callback",
 		PaidBtnUrl:     config.BotURL(),
@@ -412,6 +413,7 @@ func (s PaymentService) createTelegramInvoice(ctx context.Context, amount float6
 		return "", 0, err
 	}
 
+	plan, _ := ctx.Value("plan").(string)
 	invoiceUrl, err := s.telegramBot.CreateInvoiceLink(ctx, &bot.CreateInvoiceLinkParams{
 		Title:    s.translation.GetText(customer.Language, "invoice_title"),
 		Currency: "XTR",
@@ -422,7 +424,7 @@ func (s PaymentService) createTelegramInvoice(ctx context.Context, amount float6
 			},
 		},
 		Description: s.translation.GetText(customer.Language, "invoice_description"),
-		Payload:     fmt.Sprintf("%d&%s", purchaseId, ctx.Value("username")),
+		Payload:     fmt.Sprintf("%d&%s&%s", purchaseId, ctx.Value("username"), plan),
 	})
 
 	updates := map[string]interface{}{

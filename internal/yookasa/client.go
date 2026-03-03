@@ -76,6 +76,9 @@ func (c *Client) CreateInvoice(ctx context.Context, amount int, month int, custo
 		"purchaseId": purchaseId,
 		"username":   ctx.Value("username"),
 	}
+	if plan, ok := ctx.Value("plan").(string); ok && plan != "" {
+		metaData["plan"] = plan
+	}
 
 	paymentRequest := NewPaymentRequest(
 		rub,

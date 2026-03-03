@@ -160,6 +160,8 @@ func (h Handler) buildStartKeyboard(existingCustomer *database.Customer, langCod
 
 	inlineKeyboard = append(inlineKeyboard, [][]models.InlineKeyboardButton{{{Text: h.translation.GetText(langCode, "buy_button"), CallbackData: CallbackBuy}}}...)
 
+	inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "profile_button"), CallbackData: CallbackProfile}})
+
 	if existingCustomer.SubscriptionLink != nil && existingCustomer.ExpireAt.After(time.Now()) {
 		inlineKeyboard = append(inlineKeyboard, h.resolveConnectButton(langCode))
 	}

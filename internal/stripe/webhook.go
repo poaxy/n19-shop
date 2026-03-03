@@ -124,6 +124,9 @@ func WebhookHandler(c *Client, fulfill FulfillFunc) http.Handler {
 		}
 
 		ctx := r.Context()
+		if plan, ok := ev.Data.Object.Metadata["plan"]; ok && plan != "" {
+			ctx = context.WithValue(ctx, "plan", plan)
+		}
 		if err := fulfill(ctx, purchaseID); err != nil {
 			slog.Error("Stripe webhook: fulfill failed", "purchase_id", purchaseID, "error", err)
 			w.WriteHeader(http.StatusInternalServerError)

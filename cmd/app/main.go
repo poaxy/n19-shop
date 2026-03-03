@@ -145,9 +145,11 @@ func main() {
 
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackReferral, bot.MatchTypeExact, h.ReferralCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackBuy, bot.MatchTypeExact, h.BuyCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackPlan, bot.MatchTypePrefix, h.PlanCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackTrial, bot.MatchTypeExact, h.TrialCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackActivateTrial, bot.MatchTypeExact, h.ActivateTrialCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackStart, bot.MatchTypeExact, h.StartCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackProfile, bot.MatchTypeExact, h.ProfileCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackSell, bot.MatchTypePrefix, h.SellCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackDirect, bot.MatchTypePrefix, h.DirectPaymentCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackConnect, bot.MatchTypeExact, h.ConnectCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
@@ -348,6 +350,9 @@ func checkYookasaInvoice(
 			slog.Error("Error parsing purchaseId", "invoiceId", invoice.ID, "error", err)
 		}
 		ctxWithValue := context.WithValue(ctx, "username", invoice.Metadata["username"])
+		if plan, ok := invoice.Metadata["plan"]; ok && plan != "" {
+			ctxWithValue = context.WithValue(ctxWithValue, "plan", plan)
+		}
 		err = paymentService.ProcessPurchaseById(ctxWithValue, int64(purchaseId))
 		if err != nil {
 			slog.Error("Error processing invoice", "invoiceId", invoice.ID, "purchaseId", purchaseId, "error", err)
@@ -399,9 +404,19 @@ func checkCryptoPayInvoice(
 	for _, invoice := range *invoices {
 		if invoice.InvoiceID != nil && invoice.IsPaid() {
 			payload := strings.Split(invoice.Payload, "&")
+			if len(payload) < 2 {
+				log.Printf("Invalid CryptoPay payload: %s", invoice.Payload)
+				continue
+			}
 			purchaseID, err := strconv.Atoi(strings.Split(payload[0], "=")[1])
 			username := strings.Split(payload[1], "=")[1]
 			ctxWithUsername := context.WithValue(ctx, "username", username)
+			if len(payload) >= 3 && strings.HasPrefix(payload[2], "plan=") {
+				plan := strings.Split(payload[2], "=")[1]
+				if plan != "" {
+					ctxWithUsername = context.WithValue(ctxWithUsername, "plan", plan)
+				}
+			}
 			err = paymentService.ProcessPurchaseById(ctxWithUsername, int64(purchaseID))
 			if err != nil {
 				slog.Error("Error processing invoice", "invoiceId", invoice.InvoiceID, "error", err)

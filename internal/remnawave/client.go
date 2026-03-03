@@ -162,6 +162,32 @@ func (r *Client) CreateOrUpdateUser(ctx context.Context, customerId int64, teleg
 	return r.updateUser(ctx, existingUser, trafficLimit, days)
 }
 
+func selectInternalSquads(ctx context.Context, squads *remapi.InternalSquadsResponseDto, isTrialUser bool) []uuid.UUID {
+	selectedSquads := config.SquadUUIDs()
+	if isTrialUser {
+		selectedSquads = config.TrialInternalSquads()
+	} else {
+		if plan, ok := ctx.Value("plan").(string); ok && plan == "premium" {
+			if premium := config.PremiumInternalSquads(); premium != nil && len(premium) > 0 {
+				selectedSquads = premium
+			}
+		}
+	}
+
+	squadId := make([]uuid.UUID, 0, len(selectedSquads))
+	for _, squad := range squads.GetInternalSquads() {
+		if selectedSquads != nil && len(selectedSquads) > 0 {
+			if _, isExist := selectedSquads[squad.UUID]; !isExist {
+				continue
+			}
+			squadId = append(squadId, squad.UUID)
+		} else {
+			squadId = append(squadId, squad.UUID)
+		}
+	}
+	return squadId
+}
+
 func (r *Client) updateUser(ctx context.Context, existingUser *remapi.User, trafficLimit int, days int) (*remapi.User, error) {
 
 	newExpire := getNewExpire(days, existingUser.ExpireAt)
@@ -173,20 +199,7 @@ func (r *Client) updateUser(ctx context.Context, existingUser *remapi.User, traf
 
 	squads := resp.(*remapi.InternalSquadsResponse).GetResponse()
 
-	selectedSquads := config.SquadUUIDs()
-
-	squadId := make([]uuid.UUID, 0, len(selectedSquads))
-	for _, squad := range squads.GetInternalSquads() {
-		if selectedSquads != nil && len(selectedSquads) > 0 {
-			if _, isExist := selectedSquads[squad.UUID]; !isExist {
-				continue
-			} else {
-				squadId = append(squadId, squad.UUID)
-			}
-		} else {
-			squadId = append(squadId, squad.UUID)
-		}
-	}
+	squadId := selectInternalSquads(ctx, squads, false)
 
 	userUpdate := &remapi.UpdateUserRequestDto{
 		UUID:                 remapi.NewOptUUID(existingUser.UUID),
@@ -239,23 +252,7 @@ func (r *Client) createUser(ctx context.Context, customerId int64, telegramId in
 
 	squads := resp.(*remapi.InternalSquadsResponse).GetResponse()
 
-	selectedSquads := config.SquadUUIDs()
-	if isTrialUser {
-		selectedSquads = config.TrialInternalSquads()
-	}
-
-	squadId := make([]uuid.UUID, 0, len(selectedSquads))
-	for _, squad := range squads.GetInternalSquads() {
-		if selectedSquads != nil && len(selectedSquads) > 0 {
-			if _, isExist := selectedSquads[squad.UUID]; !isExist {
-				continue
-			} else {
-				squadId = append(squadId, squad.UUID)
-			}
-		} else {
-			squadId = append(squadId, squad.UUID)
-		}
-	}
+	squadId := selectInternalSquads(ctx, squads, isTrialUser)
 
 	externalSquad := config.ExternalSquadUUID()
 	if isTrialUser {

@@ -4,10 +4,14 @@
   "connect_button": "🔌 Подключиться",
   "back_button": "🔙 Назад",
   "pricing_info": "К оплате принимаются карты российских банков и криптовалюта",
-  "month_1": "1 месяц",
+  "pricing_info_plans": "Выберите тарифный план:",
+  "pricing_info_periods": "Выберите срок подписки:",
+  "plan_lite_button": "🌙 Lite — базовый доступ к VPN",
+  "plan_premium_button": "🚀 Max — все серверы и локации",
+  "month_1": "📅 1 месяц",
   "month_3": "3 месяца",
   "month_6": "6 месяцев",
-  "month_12": "12 месяцев",
+  "month_12": "📆 12 месяцев",
   "crypto_button": "₿ Крипто",
   "card_button": "💳 Картой банка",
   "pay_button": "💸 Оплатить",
@@ -39,5 +43,9 @@
   "web_app_button_text": "🔌 Подключиться",
   "tribute_button" : "Tribute",
   "tribute_cancelled" : "Tribute cancelled",
-  "access_denied": "⚠️ Доступ запрещён. Пожалуйста, обновите информацию профиля."
+  "access_denied": "⚠️ Доступ запрещён. Пожалуйста, обновите информацию профиля.",
+  "profile_button": "👤 Профиль",
+  "profile_info": "👤 <b>Ваш профиль</b>\n\n<b>Telegram ID:</b> <code>%d</code>\n<b>Username:</b> @%s\n<b>Роль:</b> %s\n<b>Подписка:</b> %s\n<b>Тариф:</b> %s",
+  "profile_plan_none": "Нет активного тарифа",
+  "profile_no_subscription": "Нет активной подписки"
 }

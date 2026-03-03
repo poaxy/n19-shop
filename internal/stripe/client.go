@@ -40,6 +40,9 @@ func (c *Client) CreateCheckoutSession(ctx context.Context, amountCents int, mon
 	form.Set("success_url", successURL)
 	form.Set("cancel_url", cancelURL)
 	form.Set("metadata[purchase_id]", strconv.FormatInt(purchaseID, 10))
+	if plan, ok := ctx.Value("plan").(string); ok && plan != "" {
+		form.Set("metadata[plan]", plan)
+	}
 	form.Set("line_items[0][price_data][currency]", "usd")
 	form.Set("line_items[0][price_data][unit_amount]", strconv.Itoa(amountCents))
 	form.Set("line_items[0][price_data][product_data][name]", fmt.Sprintf("VPN Subscription — %d month(s)", month))

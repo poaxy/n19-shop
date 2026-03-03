@@ -57,6 +57,7 @@ type config struct {
 	stripeSecretKey, stripeWebhookSecret, stripeWebhookPath   string
 	stripeSuccessURL, stripeCancelURL                         string
 	stripePrice1, stripePrice3, stripePrice6, stripePrice12   int
+	premiumInternalSquads                                     map[uuid.UUID]uuid.UUID
 }
 
 var conf config
@@ -111,6 +112,10 @@ func TrialInternalSquads() map[uuid.UUID]uuid.UUID {
 		return conf.trialInternalSquads
 	}
 	return conf.squadUUIDs
+}
+
+func PremiumInternalSquads() map[uuid.UUID]uuid.UUID {
+	return conf.premiumInternalSquads
 }
 
 func TrialExternalSquadUUID() uuid.UUID {
@@ -588,6 +593,25 @@ func InitConfig() {
 			slog.Info("No trial internal squads specified, will use regular SQUAD_UUIDS for trial users")
 			return map[uuid.UUID]uuid.UUID{}
 		}
+	}()
+
+	conf.premiumInternalSquads = func() map[uuid.UUID]uuid.UUID {
+		v := os.Getenv("PREMIUM_INTERNAL_SQUADS")
+		if v != "" {
+			uuids := strings.Split(v, ",")
+			var premiumSquadsMap = make(map[uuid.UUID]uuid.UUID)
+			for _, value := range uuids {
+				parsedUUID, err := uuid.Parse(strings.TrimSpace(value))
+				if err != nil {
+					panic(fmt.Sprintf("invalid UUID in PREMIUM_INTERNAL_SQUADS: %v", err))
+				}
+				premiumSquadsMap[parsedUUID] = parsedUUID
+			}
+			slog.Info("Loaded premium internal squad UUIDs", "uuids", uuids)
+			return premiumSquadsMap
+		}
+		slog.Info("No premium internal squads specified, premium plan will use regular SQUAD_UUIDS")
+		return map[uuid.UUID]uuid.UUID{}
 	}()
 
 	trialExternalSquadUUIDStr := os.Getenv("TRIAL_EXTERNAL_SQUAD_UUID")
