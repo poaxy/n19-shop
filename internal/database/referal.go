@@ -96,6 +96,27 @@ func (r *ReferralRepository) CountByReferrer(ctx context.Context, referrerID int
 	return count, nil
 }
 
+func (r *ReferralRepository) CountSuccessfulByReferrer(ctx context.Context, referrerID int64) (int, error) {
+	query := sq.Select("COUNT(*)").
+		From("referral").
+		Where(sq.And{
+			sq.Eq{"referrer_id": referrerID},
+			sq.Eq{"bonus_granted": true},
+		}).
+		PlaceholderFormat(sq.Dollar)
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return 0, fmt.Errorf("failed to build count successful referrals by referrer query: %w", err)
+	}
+
+	var count int
+	if err := r.pool.QueryRow(ctx, sql, args...).Scan(&count); err != nil {
+		return 0, fmt.Errorf("failed to scan count of successful referrals: %w", err)
+	}
+	return count, nil
+}
+
 func (r *ReferralRepository) FindByReferee(ctx context.Context, refereeID int64) (*Referral, error) {
 	query := sq.Select("id", "referrer_id", "referee_id", "used_at", "bonus_granted").
 		From("referral").

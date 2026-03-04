@@ -50,6 +50,17 @@ func (h Handler) ProfileCallbackHandler(ctx context.Context, b *bot.Bot, update 
 		diamonds = customer.Diamonds
 	}
 
+	totalInvites := 0
+	successfulInvites := 0
+	if customer != nil {
+		if count, err := h.referralRepository.CountByReferrer(ctx, customer.TelegramID); err == nil {
+			totalInvites = count
+		}
+		if count, err := h.referralRepository.CountSuccessfulByReferrer(ctx, customer.TelegramID); err == nil {
+			successfulInvites = count
+		}
+	}
+
 	text := fmt.Sprintf(
 		h.translation.GetText(langCode, "profile_info"),
 		cb.From.ID,
@@ -58,6 +69,8 @@ func (h Handler) ProfileCallbackHandler(ctx context.Context, b *bot.Bot, update 
 		plan,
 		expireAtStr,
 		diamonds,
+		totalInvites,
+		successfulInvites,
 	)
 
 	_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{

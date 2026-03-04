@@ -132,8 +132,17 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 		deltaDiamonds = int(float64(deltaDiamonds) * 1.2)
 	}
 	if deltaDiamonds > 0 {
+		// Refresh customer to avoid using stale diamonds value
+		freshCustomer, err := s.customerRepository.FindById(ctx, customer.ID)
+		if err != nil {
+			return err
+		}
+		currentDiamonds := 0
+		if freshCustomer != nil {
+			currentDiamonds = freshCustomer.Diamonds
+		}
 		if err := s.customerRepository.UpdateFields(ctx, customer.ID, map[string]interface{}{
-			"diamonds": customer.Diamonds + deltaDiamonds,
+			"diamonds": currentDiamonds + deltaDiamonds,
 		}); err != nil {
 			return err
 		}
@@ -180,45 +189,82 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 	}
 
 	ctxReferee := context.Background()
-	referee, err := s.referralRepository.FindByReferee(ctxReferee, customer.TelegramID)
-	if referee == nil {
-		return nil
-	}
-	if referee.BonusGranted {
-		return nil
-	}
+	referralRecord, err := s.referralRepository.FindByReferee(ctxReferee, customer.TelegramID)
 	if err != nil {
 		return err
 	}
-	refereeCustomer, err := s.customerRepository.FindByTelegramId(ctxReferee, referee.ReferrerID)
-	if err != nil {
-		return err
+	if referralRecord != nil && !referralRecord.BonusGranted {
+		const referralBonusDiamonds = 5
+
+		// Award +5 diamonds to the paying user (referee)
+		refereeFresh, err := s.customerRepository.FindById(ctxReferee, customer.ID)
+		if err != nil {
+			return err
+		}
+		refereeDiamonds := 0
+		if refereeFresh != nil {
+			refereeDiamonds = refereeFresh.Diamonds
+		}
+		if err := s.customerRepository.UpdateFields(ctxReferee, customer.ID, map[string]interface{}{
+			"diamonds": refereeDiamonds + referralBonusDiamonds,
+		}); err != nil {
+			return err
+		}
+
+		// Award +5 diamonds to the referrer
+		referrerCustomer, err := s.customerRepository.FindByTelegramId(ctxReferee, referralRecord.ReferrerID)
+		if err != nil {
+			return err
+		}
+		if referrerCustomer != nil {
+			referrerFresh, err := s.customerRepository.FindById(ctxReferee, referrerCustomer.ID)
+			if err != nil {
+				return err
+			}
+			referrerDiamonds := 0
+			if referrerFresh != nil {
+				referrerDiamonds = referrerFresh.Diamonds
+			}
+			if err := s.customerRepository.UpdateFields(ctxReferee, referrerCustomer.ID, map[string]interface{}{
+				"diamonds": referrerDiamonds + referralBonusDiamonds,
+			}); err != nil {
+				return err
+			}
+
+			// Extend referrer's subscription as before
+			referrerUser, err := s.remnawaveClient.CreateOrUpdateUser(ctxReferee, referrerCustomer.ID, referrerCustomer.TelegramID, config.TrafficLimit(), config.GetReferralDays(), false)
+			if err != nil {
+				return err
+			}
+			referrerUserFilesToUpdate := map[string]interface{}{
+				"subscription_link": referrerUser.GetSubscriptionUrl(),
+				"expire_at":         referrerUser.GetExpireAt(),
+			}
+			if err := s.customerRepository.UpdateFields(ctxReferee, referrerCustomer.ID, referrerUserFilesToUpdate); err != nil {
+				return err
+			}
+
+			// Mark referral as processed for bonus (first paid purchase)
+			if err := s.referralRepository.MarkBonusGranted(ctxReferee, referralRecord.ID); err != nil {
+				return err
+			}
+
+			slog.Info("Granted referral bonus", "customer_id", utils.MaskHalfInt64(referrerCustomer.ID))
+
+			// Notify referrer about diamonds
+			_, err = s.telegramBot.SendMessage(ctxReferee, &bot.SendMessageParams{
+				ChatID:    referrerCustomer.TelegramID,
+				ParseMode: models.ParseModeHTML,
+				Text:      s.translation.GetText(referrerCustomer.Language, "referral_diamonds_granted"),
+				ReplyMarkup: models.InlineKeyboardMarkup{
+					InlineKeyboard: s.createConnectKeyboard(referrerCustomer),
+				},
+			})
+			if err != nil {
+				return err
+			}
+		}
 	}
-	refereeUser, err := s.remnawaveClient.CreateOrUpdateUser(ctxReferee, refereeCustomer.ID, refereeCustomer.TelegramID, config.TrafficLimit(), config.GetReferralDays(), false)
-	if err != nil {
-		return err
-	}
-	refereeUserFilesToUpdate := map[string]interface{}{
-		"subscription_link": refereeUser.GetSubscriptionUrl(),
-		"expire_at":         refereeUser.GetExpireAt(),
-	}
-	err = s.customerRepository.UpdateFields(ctxReferee, refereeCustomer.ID, refereeUserFilesToUpdate)
-	if err != nil {
-		return err
-	}
-	err = s.referralRepository.MarkBonusGranted(ctxReferee, referee.ID)
-	if err != nil {
-		return err
-	}
-	slog.Info("Granted referral bonus", "customer_id", utils.MaskHalfInt64(refereeCustomer.ID))
-	_, err = s.telegramBot.SendMessage(ctxReferee, &bot.SendMessageParams{
-		ChatID:    refereeCustomer.TelegramID,
-		ParseMode: models.ParseModeHTML,
-		Text:      s.translation.GetText(refereeCustomer.Language, "referral_bonus_granted"),
-		ReplyMarkup: models.InlineKeyboardMarkup{
-			InlineKeyboard: s.createConnectKeyboard(refereeCustomer),
-		},
-	})
 
 	slog.Info("purchase processed", "purchase_id", utils.MaskHalfInt64(purchase.ID), "type", purchase.InvoiceType, "customer_id", utils.MaskHalfInt64(customer.ID))
 
