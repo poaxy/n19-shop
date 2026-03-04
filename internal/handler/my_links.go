@@ -30,10 +30,12 @@ func (h Handler) MyLinksCallbackHandler(ctx context.Context, b *bot.Bot, update 
 		if customer.SubscriptionLink != nil {
 			link = *customer.SubscriptionLink
 		}
+		diamonds := customer.Diamonds
 		text = fmt.Sprintf(
 			h.translation.GetText(langCode, "my_links_info"),
 			link,
 			expireAt,
+			diamonds,
 		)
 	}
 

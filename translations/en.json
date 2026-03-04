@@ -51,7 +51,7 @@
   "profile_no_subscription": "No active subscription",
   "my_links_button": "🔗 My links",
   "my_links_empty": "You don't have any active subscription links yet.",
-  "my_links_info": "🔗 <b>Your active link</b>\n\n<b>Link:</b> %s\n<b>Expires at:</b> %s",
+  "my_links_info": "🔗 <b>Your active link</b>\n\n<b>Link:</b> %s\n<b>Expires at:</b> %s\n<b>💎 Diamonds:</b> %d",
   "guides_button": "📚 Guides",
   "guides_title": "📚 <b>Guides</b>\n\nChoose what you want to learn:",
   "guide_how_to_connect_button": "❓ How to connect?",
