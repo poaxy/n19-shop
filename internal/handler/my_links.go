@@ -26,9 +26,13 @@ func (h Handler) MyLinksCallbackHandler(ctx context.Context, b *bot.Bot, update 
 		text = h.translation.GetText(langCode, "my_links_empty")
 	} else {
 		expireAt := customer.ExpireAt.Format("02.01.2006 15:04")
+		link := ""
+		if customer.SubscriptionLink != nil {
+			link = *customer.SubscriptionLink
+		}
 		text = fmt.Sprintf(
 			h.translation.GetText(langCode, "my_links_info"),
-			customer.SubscriptionLink,
+			link,
 			expireAt,
 		)
 	}
