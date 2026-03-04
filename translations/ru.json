@@ -45,7 +45,7 @@
   "tribute_cancelled" : "Tribute cancelled",
   "access_denied": "⚠️ Доступ запрещён. Пожалуйста, обновите информацию профиля.",
   "profile_button": "👤 Профиль",
-  "profile_info": "👤 <b>Ваш профиль</b>\n\n<b>Telegram ID:</b> <code>%d</code>\n<b>Username:</b> @%s\n<b>Роль:</b> %s\n<b>Тариф:</b> %s\n<b>Подписка:</b> %s",
+  "profile_info": "👤 <b>Ваш профиль</b>\n\n<b>Telegram ID:</b> <code>%d</code>\n<b>Username:</b> @%s\n<b>Роль:</b> %s\n<b>Тариф:</b> %s\n<b>Подписка:</b> %s\n<b>💎 Бриллианты:</b> %d",
   "profile_plan_none": "Нет активного тарифа",
   "profile_plan_free": "Бесплатный тариф",
   "profile_no_subscription": "Нет активной подписки",

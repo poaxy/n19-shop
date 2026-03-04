@@ -113,6 +113,33 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 		return err
 	}
 
+	// Award diamonds based on plan and period
+	plan, _ := ctx.Value("plan").(string)
+	if plan == "" {
+		plan = "lite"
+	}
+	baseMonthly := 0
+	switch plan {
+	case "premium":
+		baseMonthly = 10
+	default:
+		baseMonthly = 5
+	}
+	months := purchase.Month
+	deltaDiamonds := baseMonthly * months
+	if months == 12 {
+		// 20% boost for yearly
+		deltaDiamonds = int(float64(deltaDiamonds) * 1.2)
+	}
+	if deltaDiamonds > 0 {
+		if err := s.customerRepository.UpdateFields(ctx, customer.ID, map[string]interface{}{
+			"diamonds": customer.Diamonds + deltaDiamonds,
+		}); err != nil {
+			return err
+		}
+		slog.Info("diamonds granted", "customer_id", utils.MaskHalfInt64(customer.ID), "plan", plan, "months", months, "diamonds", deltaDiamonds)
+	}
+
 	_, err = s.telegramBot.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID: customer.TelegramID,
 		Text:   s.translation.GetText(customer.Language, "subscription_activated"),
@@ -452,6 +479,7 @@ func (s PaymentService) ActivateTrial(ctx context.Context, telegramId int64) (st
 	customerFilesToUpdate := map[string]interface{}{
 		"subscription_link": user.GetSubscriptionUrl(),
 		"expire_at":         user.GetExpireAt(),
+		"diamonds":          customer.Diamonds + 1,
 	}
 
 	err = s.customerRepository.UpdateFields(ctx, customer.ID, customerFilesToUpdate)

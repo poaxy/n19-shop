@@ -45,6 +45,11 @@ func (h Handler) ProfileCallbackHandler(ctx context.Context, b *bot.Bot, update 
 		plan = h.translation.GetText(langCode, "profile_plan_free")
 	}
 
+	diamonds := 0
+	if customer != nil {
+		diamonds = customer.Diamonds
+	}
+
 	text := fmt.Sprintf(
 		h.translation.GetText(langCode, "profile_info"),
 		cb.From.ID,
@@ -52,6 +57,7 @@ func (h Handler) ProfileCallbackHandler(ctx context.Context, b *bot.Bot, update 
 		role,
 		plan,
 		expireAtStr,
+		diamonds,
 	)
 
 	_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{
