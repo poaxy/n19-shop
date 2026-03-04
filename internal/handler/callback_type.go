@@ -12,4 +12,7 @@ const (
 	CallbackActivateTrial = "activate_trial"
 	CallbackReferral      = "referral"
 	CallbackProfile       = "profile"
+	CallbackMyLinks       = "my_links"
+	CallbackGuides        = "guides"
+	CallbackGuideHowTo    = "guide_how_to_connect"
 )

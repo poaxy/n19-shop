@@ -29,10 +29,10 @@
   "invoice_description" : "Subscription",
   "invoice_label" : "Subscription",
   "invoice_title" : "Subscription",
-  "trial_button": "🔥 Try for free",
-  "trial_activated": "Trial period activated",
-  "trial_text": "Your trial version is active",
-  "activate_trial_button": "Activate trial version",
+  "trial_button": "🔥 Get free plan",
+  "trial_activated": "Your free plan is now active",
+  "trial_text": "You can activate your free plan now.",
+  "activate_trial_button": "Activate free plan",
   "referral_button": "🤝 Referrals",
   "referral_text": "Invited: %d",
   "referral_bonus_granted": "You have received a referral bonus!",
@@ -48,5 +48,12 @@
   "profile_info": "👤 <b>Your profile</b>\n\n<b>Telegram ID:</b> <code>%d</code>\n<b>Username:</b> @%s\n<b>Role:</b> %s\n<b>Plan:</b> %s\n<b>Subscription:</b> %s",
   "profile_plan_none": "No active plan",
   "profile_plan_free": "Free tier",
-  "profile_no_subscription": "No active subscription"
+  "profile_no_subscription": "No active subscription",
+  "my_links_button": "🔗 My links",
+  "my_links_empty": "You don't have any active subscription links yet.",
+  "my_links_info": "🔗 <b>Your active link</b>\n\n<b>Link:</b> %s\n<b>Expires at:</b> %s",
+  "guides_button": "📚 Guides",
+  "guides_title": "📚 <b>Guides</b>\n\nChoose what you want to learn:",
+  "guide_how_to_connect_button": "❓ How to connect?",
+  "guide_how_to_connect_text": "Here will be a detailed guide on how to connect. (Placeholder)"
 }

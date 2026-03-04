@@ -29,10 +29,10 @@
   "invoice_description": "Подписка",
   "invoice_label": "Подписка",
   "invoice_title": "Подписка",
-  "trial_button": "🔥 Попробовать бесплатно",
-  "trial_activated": "Пробный период активирован",
-  "trial_text": "Ваша пробная версия действует",
-  "activate_trial_button": "Активировать пробную версию",
+  "trial_button": "🔥 Получить бесплатный тариф",
+  "trial_activated": "Ваш бесплатный тариф активирован",
+  "trial_text": "Вы можете активировать бесплатный тариф.",
+  "activate_trial_button": "Активировать бесплатный тариф",
   "referral_button": "🤝 Рефералы",
   "referral_text": "Приглашено: %d",
   "referral_bonus_granted": "Вы получили бонус за реферала!",
@@ -48,5 +48,12 @@
   "profile_info": "👤 <b>Ваш профиль</b>\n\n<b>Telegram ID:</b> <code>%d</code>\n<b>Username:</b> @%s\n<b>Роль:</b> %s\n<b>Тариф:</b> %s\n<b>Подписка:</b> %s",
   "profile_plan_none": "Нет активного тарифа",
   "profile_plan_free": "Бесплатный тариф",
-  "profile_no_subscription": "Нет активной подписки"
+  "profile_no_subscription": "Нет активной подписки",
+  "my_links_button": "🔗 Мои ссылки",
+  "my_links_empty": "У вас ещё нет активных ссылок подписки.",
+  "my_links_info": "🔗 <b>Ваша активная ссылка</b>\n\n<b>Ссылка:</b> %s\n<b>Действует до:</b> %s",
+  "guides_button": "📚 Гайды",
+  "guides_title": "📚 <b>Гайды</b>\n\nВыберите, что вы хотите узнать:",
+  "guide_how_to_connect_button": "❓ Как подключиться?",
+  "guide_how_to_connect_text": "Здесь будет подробная инструкция по подключению. (Заглушка)"
 }

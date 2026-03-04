@@ -62,6 +62,9 @@ func (h Handler) ProfileCallbackHandler(ctx context.Context, b *bot.Bot, update 
 		ReplyMarkup: models.InlineKeyboardMarkup{
 			InlineKeyboard: [][]models.InlineKeyboardButton{
 				{
+					{Text: h.translation.GetText(langCode, "my_links_button"), CallbackData: CallbackMyLinks},
+				},
+				{
 					{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackStart},
 				},
 			},
