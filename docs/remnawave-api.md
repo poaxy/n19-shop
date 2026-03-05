@@ -102,7 +102,22 @@ From this bot’s perspective, a “user” in Remnawave has at least:
 - `ExternalSquadUuid` – optional single external squad.
 - `Tag` – arbitrary string, configured via `REMNAWAVE_TAG` / `TRIAL_REMNAWAVE_TAG`.
 
-### 3.1 Creating a user
+### 3.1 Single user per Telegram account
+
+The bot follows a **single-user-per-Telegram-account** model in Remnawave:
+
+- All creations and updates go through `Client.CreateOrUpdateUser`.
+- Users are always looked up by **Telegram ID** (`GetUserByTelegramId`).
+- If at least one user exists for that Telegram ID, the bot **updates** that user instead of creating a new one.
+- If no user exists, the bot creates a new one with username `<customer_id>_<telegram_id>`.
+
+This means:
+
+- Free plan activation, Lite / Max purchases, upgrades, and renewals all operate on **the same Remnawave user**.
+- The VPN **subscription link** (`SubscriptionUrl`) is conceptually permanent for that Telegram account. When Remnawave returns a new `SubscriptionUrl`, the bot overwrites the single `customer.subscription_link` field, and `My Links` / `Profile` always show the latest value.
+- There is **no separate Remnawave user per tier**; only the traffic limits, squads, and expiration are changed over time.
+
+### 3.2 Creating a user
 
 Creation is done via `Client.createUser`, which calls the SDK’s `Users().CreateUser`:
 
@@ -143,7 +158,7 @@ func (r *Client) createUser(ctx context.Context, customerId int64, telegramId in
 
 If a user with that Telegram ID already exists, the bot will **update** instead of creating (see below).
 
-### 3.2 Updating a user (extend subscription)
+### 3.3 Updating a user (extend / change subscription)
 
 Updates are handled by `Client.updateUser`, which calls `Users().UpdateUser`:
 
@@ -182,7 +197,7 @@ func (r *Client) updateUser(ctx context.Context, existingUser *remapi.User, traf
 
 This is what actually makes “1 / 3 / 6 / 12 month” purchases extend the subscription in Remnawave.
 
-### 3.3 Lookup by Telegram ID
+### 3.4 Lookup by Telegram ID
 
 Both `CreateOrUpdateUser` and `DecreaseSubscription` lookup Remnawave users by Telegram ID:
 

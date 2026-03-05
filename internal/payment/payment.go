@@ -93,10 +93,18 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 		}
 	}
 
+	previousLinkWasEmpty := customer.SubscriptionLink == nil || (customer.SubscriptionLink != nil && *customer.SubscriptionLink == "")
+
 	user, err := s.remnawaveClient.CreateOrUpdateUser(ctx, customer.ID, customer.TelegramID, config.TrafficLimit(), purchase.Month*config.DaysInMonth(), false)
 	if err != nil {
 		return err
 	}
+
+	slog.Info("remnawave user updated for purchase",
+		"customer_id", utils.MaskHalfInt64(customer.ID),
+		"telegram_id", utils.MaskHalfInt64(customer.TelegramID),
+		"months", purchase.Month,
+	)
 
 	err = s.purchaseRepository.MarkAsPaid(ctx, purchase.ID)
 	if err != nil {
@@ -111,6 +119,18 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 	err = s.customerRepository.UpdateFields(ctx, customer.ID, customerFilesToUpdate)
 	if err != nil {
 		return err
+	}
+
+	// If this is the first time the user receives a subscription link, send them a one-time info message.
+	if previousLinkWasEmpty && user.SubscriptionUrl != "" {
+		_, sendErr := s.telegramBot.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    customer.TelegramID,
+			ParseMode: models.ParseModeHTML,
+			Text:      s.translation.GetText(customer.Language, "unique_link_info"),
+		})
+		if sendErr != nil {
+			slog.Error("error sending unique link info message", "error", sendErr, "telegram_id", utils.MaskHalfInt64(customer.TelegramID))
+		}
 	}
 
 	// Award diamonds based on plan and period
@@ -516,11 +536,18 @@ func (s PaymentService) ActivateTrial(ctx context.Context, telegramId int64) (st
 	if customer == nil {
 		return "", fmt.Errorf("customer %d not found", telegramId)
 	}
+	previousLinkWasEmpty := customer.SubscriptionLink == nil || (customer.SubscriptionLink != nil && *customer.SubscriptionLink == "")
+
 	user, err := s.remnawaveClient.CreateOrUpdateUser(ctx, customer.ID, telegramId, config.TrialTrafficLimit(), config.TrialDays(), true)
 	if err != nil {
 		slog.Error("Error creating user", "error", err)
 		return "", err
 	}
+
+	slog.Info("remnawave user updated for trial",
+		"customer_id", utils.MaskHalfInt64(customer.ID),
+		"telegram_id", utils.MaskHalfInt64(telegramId),
+	)
 
 	customerFilesToUpdate := map[string]interface{}{
 		"subscription_link": user.GetSubscriptionUrl(),
@@ -531,6 +558,18 @@ func (s PaymentService) ActivateTrial(ctx context.Context, telegramId int64) (st
 	err = s.customerRepository.UpdateFields(ctx, customer.ID, customerFilesToUpdate)
 	if err != nil {
 		return "", err
+	}
+
+	// If this is the first time the user receives a subscription link, send them a one-time info message.
+	if previousLinkWasEmpty && user.GetSubscriptionUrl() != "" {
+		_, sendErr := s.telegramBot.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    telegramId,
+			ParseMode: models.ParseModeHTML,
+			Text:      s.translation.GetText(customer.Language, "unique_link_info"),
+		})
+		if sendErr != nil {
+			slog.Error("error sending unique link info message (trial)", "error", sendErr, "telegram_id", utils.MaskHalfInt64(telegramId))
+		}
 	}
 
 	return user.GetSubscriptionUrl(), nil

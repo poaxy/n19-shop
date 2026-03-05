@@ -19,6 +19,7 @@
   "subscription_link": "\n\nSubscription link: %s",
   "no_subscription": "You don't have an active subscription",
   "subscription_activated": "Your subscription has been activated!",
+  "unique_link_info": "🔗 <b>Your unique VPN link</b>\n\nThis link is permanently attached to your account. Please keep it safe.\n\nWhen you upgrade or renew your subscription, just use the <b>Update</b> button in the VPN client with this same link to get access to new servers and traffic — you do not need a new link.",
   "feedback_button": "⭐ Feedback",
   "server_status_button": "🟢 Server Status",
   "support_button": "🆘 Support",
