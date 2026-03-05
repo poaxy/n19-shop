@@ -57,5 +57,20 @@
   "guides_button": "📚 Гайды",
   "guides_title": "📚 <b>Гайды</b>\n\nВыберите, что вы хотите узнать:",
   "guide_how_to_connect_button": "❓ Как подключиться?",
-  "guide_how_to_connect_text": "Здесь будет подробная инструкция по подключению. (Заглушка)"
+  "guide_how_to_connect_text": "Здесь будет подробная инструкция по подключению. (Заглушка)",
+  "admin_menu_title": "🛠️ <b>Панель администратора</b>\n\nВыберите действие:",
+  "admin_notify_button": "📣 Уведомления",
+  "admin_tools_button": "🧰 Инструменты",
+  "admin_notify_menu_title": "📣 <b>Уведомления</b>\n\nВыберите способ отправки сообщения:",
+  "admin_notify_all_button": "📢 Уведомить всех пользователей",
+  "admin_notify_direct_button": "✉️ Личное сообщение",
+  "admin_notify_all_prompt": "Отправьте текст сообщения, которое нужно разослать всем пользователям. Допускается HTML-форматирование.",
+  "admin_notify_all_done": "✅ Рассылка отправлена всем известным пользователям.",
+  "admin_notify_error": "❌ Произошла ошибка при отправке сообщения. Проверьте логи.",
+  "admin_notify_direct_id_prompt": "Отправьте Telegram ID пользователя, которому нужно написать.",
+  "admin_notify_direct_id_invalid": "❌ Неверный Telegram ID. Пожалуйста, отправьте числовой ID.",
+  "admin_notify_direct_not_found": "❌ Пользователь с таким Telegram ID не найден в базе бота.",
+  "admin_notify_direct_message_prompt": "Отправьте текст сообщения, которое нужно доставить этому пользователю.",
+  "admin_notify_direct_done": "✅ Сообщение отправлено выбранному пользователю.",
+  "admin_tools_placeholder": "🧰 <b>Инструменты администратора</b>\n\nВ будущем здесь появятся дополнительные инструменты."
 }

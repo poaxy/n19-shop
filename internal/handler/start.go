@@ -67,7 +67,15 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 		}
 	}
 
-	inlineKeyboard := h.buildStartKeyboard(existingCustomer, langCode)
+	var text string
+	var inlineKeyboard [][]models.InlineKeyboardButton
+	if update.Message.From.ID == config.GetAdminTelegramId() {
+		inlineKeyboard = h.buildAdminStartKeyboard(langCode)
+		text = h.translation.GetText(langCode, "admin_menu_title")
+	} else {
+		inlineKeyboard = h.buildStartKeyboard(existingCustomer, langCode)
+		text = h.translation.GetText(langCode, "greeting")
+	}
 
 	m, err := b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID: update.Message.Chat.ID,
@@ -98,7 +106,7 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 		ReplyMarkup: models.InlineKeyboardMarkup{
 			InlineKeyboard: inlineKeyboard,
 		},
-		Text: h.translation.GetText(langCode, "greeting"),
+		Text: text,
 	})
 	if err != nil {
 		slog.Error("Error sending /start message", "error", err)
@@ -118,7 +126,15 @@ func (h Handler) StartCallbackHandler(ctx context.Context, b *bot.Bot, update *m
 		return
 	}
 
-	inlineKeyboard := h.buildStartKeyboard(existingCustomer, langCode)
+	var text string
+	var inlineKeyboard [][]models.InlineKeyboardButton
+	if callback.From.ID == config.GetAdminTelegramId() {
+		inlineKeyboard = h.buildAdminStartKeyboard(langCode)
+		text = h.translation.GetText(langCode, "admin_menu_title")
+	} else {
+		inlineKeyboard = h.buildStartKeyboard(existingCustomer, langCode)
+		text = h.translation.GetText(langCode, "greeting")
+	}
 
 	_, err = b.EditMessageText(ctxWithTime, &bot.EditMessageTextParams{
 		ChatID:    callback.Message.Message.Chat.ID,
@@ -127,7 +143,7 @@ func (h Handler) StartCallbackHandler(ctx context.Context, b *bot.Bot, update *m
 		ReplyMarkup: models.InlineKeyboardMarkup{
 			InlineKeyboard: inlineKeyboard,
 		},
-		Text: h.translation.GetText(langCode, "greeting"),
+		Text: text,
 	})
 	if err != nil {
 		slog.Error("Error sending /start message", "error", err)
@@ -187,5 +203,19 @@ func (h Handler) buildStartKeyboard(existingCustomer *database.Customer, langCod
 	if config.TosURL() != "" {
 		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "tos_button"), URL: config.TosURL()}})
 	}
+	return inlineKeyboard
+}
+
+func (h Handler) buildAdminStartKeyboard(langCode string) [][]models.InlineKeyboardButton {
+	var inlineKeyboard [][]models.InlineKeyboardButton
+
+	inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
+		{Text: h.translation.GetText(langCode, "admin_notify_button"), CallbackData: CallbackAdminNotify},
+	})
+
+	inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
+		{Text: h.translation.GetText(langCode, "admin_tools_button"), CallbackData: CallbackAdminTools},
+	})
+
 	return inlineKeyboard
 }

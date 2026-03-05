@@ -343,3 +343,33 @@ func (cr *CustomerRepository) DeleteByNotInTelegramIds(ctx context.Context, tele
 	return nil
 
 }
+
+func (cr *CustomerRepository) ListAllTelegramIds(ctx context.Context) ([]int64, error) {
+	buildSelect := sq.Select("telegram_id").
+		From("customer").
+		PlaceholderFormat(sq.Dollar)
+
+	sqlStr, args, err := buildSelect.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build select telegram ids query: %w", err)
+	}
+
+	rows, err := cr.pool.Query(ctx, sqlStr, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query telegram ids: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("failed to scan telegram id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating telegram ids rows: %w", err)
+	}
+	return ids, nil
+}

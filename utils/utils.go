@@ -25,3 +25,7 @@ func MaskHalf(input string) string {
 	maskedLength := length - visibleLength
 	return input[:visibleLength] + strings.Repeat("*", maskedLength)
 }
+
+func ParseInt64(s string) (int64, error) {
+	return strconv.ParseInt(strings.TrimSpace(s), 10, 64)
+}

@@ -58,4 +58,20 @@
   "guides_title": "📚 <b>Guides</b>\n\nChoose what you want to learn:",
   "guide_how_to_connect_button": "❓ How to connect?",
   "guide_how_to_connect_text": "Here will be a detailed guide on how to connect. (Placeholder)"
+  ,
+  "admin_menu_title": "🛠️ <b>Admin panel</b>\n\nChoose an action:",
+  "admin_notify_button": "📣 Notify",
+  "admin_tools_button": "🧰 Tools",
+  "admin_notify_menu_title": "📣 <b>Notifications</b>\n\nChoose how you want to send a message:",
+  "admin_notify_all_button": "📢 Notify all users",
+  "admin_notify_direct_button": "✉️ Direct message",
+  "admin_notify_all_prompt": "Send the message you want to broadcast to all users. It can contain HTML formatting.",
+  "admin_notify_all_done": "✅ Broadcast sent to all known users.",
+  "admin_notify_error": "❌ An error occurred while sending the message. Please check the logs.",
+  "admin_notify_direct_id_prompt": "Send the Telegram ID of the user you want to message.",
+  "admin_notify_direct_id_invalid": "❌ Invalid Telegram ID. Please send a numeric ID.",
+  "admin_notify_direct_not_found": "❌ No user with this Telegram ID was found in the bot.",
+  "admin_notify_direct_message_prompt": "Send the message you want to deliver to this user.",
+  "admin_notify_direct_done": "✅ Message has been sent to the selected user.",
+  "admin_tools_placeholder": "🧰 <b>Admin tools</b>\n\nThis section will contain additional tools in the future."
 }
