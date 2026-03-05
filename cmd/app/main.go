@@ -243,11 +243,19 @@ func fullHealthHandler(pool *pgxpool.Pool, rw *remnawave.Client) http.Handler {
 
 func isAdminMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 	return func(ctx context.Context, b *bot.Bot, update *models.Update) {
-		if update.Message != nil && update.Message.From.ID == config.GetAdminTelegramId() {
+		adminID := config.GetAdminTelegramId()
+
+		if update.Message != nil && update.Message.From.ID == adminID {
 			next(ctx, b, update)
-		} else {
 			return
 		}
+
+		if update.CallbackQuery != nil && update.CallbackQuery.From.ID == adminID {
+			next(ctx, b, update)
+			return
+		}
+
+		return
 	}
 }
 
