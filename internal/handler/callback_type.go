@@ -23,4 +23,6 @@ const (
 	CallbackAdminToolsResetDiamondsConfirm = "admin_tools_reset_diamonds_confirm"
 	CallbackAdminToolsSync = "admin_tools_sync"
 	CallbackAdminToolsStats = "admin_tools_stats"
+	CallbackLanguage = "language"
+	CallbackLanguageSelectPrefix = "lang:"
 )

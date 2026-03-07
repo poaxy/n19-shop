@@ -18,17 +18,18 @@ import (
 func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	ctxWithTime, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	langCode := update.Message.From.LanguageCode
 	existingCustomer, err := h.customerRepository.FindByTelegramId(ctx, update.Message.Chat.ID)
 	if err != nil {
 		slog.Error("error finding customer by telegram id", "error", err)
 		return
 	}
 
+	userLangCode := normalizeLanguageCode(update.Message.From.LanguageCode)
+
 	if existingCustomer == nil {
 		existingCustomer, err = h.customerRepository.Create(ctxWithTime, &database.Customer{
 			TelegramID: update.Message.Chat.ID,
-			Language:   langCode,
+			Language:   userLangCode,
 		})
 		if err != nil {
 			slog.Error("error creating customer", "error", err)
@@ -55,9 +56,9 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 				}
 			}
 		}
-	} else {
+	} else if existingCustomer.Language == "" {
 		updates := map[string]interface{}{
-			"language": langCode,
+			"language": userLangCode,
 		}
 
 		err = h.customerRepository.UpdateFields(ctx, existingCustomer.ID, updates)
@@ -65,7 +66,10 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 			slog.Error("Error updating customer", "error", err)
 			return
 		}
+		existingCustomer.Language = userLangCode
 	}
+
+	langCode := h.getUserLanguage(existingCustomer, update.Message.From)
 
 	var text string
 	var inlineKeyboard [][]models.InlineKeyboardButton
@@ -118,13 +122,13 @@ func (h Handler) StartCallbackHandler(ctx context.Context, b *bot.Bot, update *m
 	defer cancel()
 
 	callback := update.CallbackQuery
-	langCode := callback.From.LanguageCode
-
 	existingCustomer, err := h.customerRepository.FindByTelegramId(ctxWithTime, callback.From.ID)
 	if err != nil {
 		slog.Error("error finding customer by telegram id", "error", err)
 		return
 	}
+
+	langCode := h.getUserLanguage(existingCustomer, callback.From)
 
 	var text string
 	var inlineKeyboard [][]models.InlineKeyboardButton
@@ -177,6 +181,8 @@ func (h Handler) buildStartKeyboard(existingCustomer *database.Customer, langCod
 	inlineKeyboard = append(inlineKeyboard, [][]models.InlineKeyboardButton{{{Text: h.translation.GetText(langCode, "buy_button"), CallbackData: CallbackBuy}}}...)
 
 	inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "profile_button"), CallbackData: CallbackProfile}})
+
+	inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "language_button"), CallbackData: CallbackLanguage}})
 
 	inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "guides_button"), CallbackData: CallbackGuides}})
 

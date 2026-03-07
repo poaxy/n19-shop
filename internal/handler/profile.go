@@ -13,7 +13,6 @@ import (
 
 func (h Handler) ProfileCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	cb := update.CallbackQuery
-	langCode := cb.From.LanguageCode
 	chatID := cb.Message.Message.Chat.ID
 
 	customer, err := h.customerRepository.FindByTelegramId(ctx, cb.From.ID)
@@ -21,6 +20,8 @@ func (h Handler) ProfileCallbackHandler(ctx context.Context, b *bot.Bot, update 
 		slog.Error("error finding customer for profile", "error", err)
 		return
 	}
+
+	langCode := h.getUserLanguage(customer, cb.From)
 
 	role := "customer"
 	if cb.From.ID == config.GetAdminTelegramId() {

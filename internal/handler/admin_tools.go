@@ -19,7 +19,8 @@ func (h Handler) AdminToolsCallbackHandler(ctx context.Context, b *bot.Bot, upda
 		return
 	}
 
-	langCode := cb.From.LanguageCode
+	customer, _ := h.customerRepository.FindByTelegramId(ctx, cb.From.ID)
+	langCode := h.getUserLanguage(customer, cb.From)
 	callbackMessage := cb.Message.Message
 
 	_, err := b.EditMessageText(ctx, &bot.EditMessageTextParams{
@@ -47,7 +48,8 @@ func (h Handler) AdminToolsResetDiamondsCallbackHandler(ctx context.Context, b *
 		return
 	}
 
-	langCode := cb.From.LanguageCode
+	customer, _ := h.customerRepository.FindByTelegramId(ctx, cb.From.ID)
+	langCode := h.getUserLanguage(customer, cb.From)
 	callbackMessage := cb.Message.Message
 
 	_, err := b.EditMessageText(ctx, &bot.EditMessageTextParams{
@@ -73,7 +75,8 @@ func (h Handler) AdminToolsResetDiamondsConfirmCallbackHandler(ctx context.Conte
 		return
 	}
 
-	langCode := cb.From.LanguageCode
+	customer, _ := h.customerRepository.FindByTelegramId(ctx, cb.From.ID)
+	langCode := h.getUserLanguage(customer, cb.From)
 	callbackMessage := cb.Message.Message
 
 	if err := h.customerRepository.ResetAllDiamonds(ctx); err != nil {
@@ -111,7 +114,8 @@ func (h Handler) AdminToolsSyncCallbackHandler(ctx context.Context, b *bot.Bot, 
 		return
 	}
 
-	langCode := cb.From.LanguageCode
+	customer, _ := h.customerRepository.FindByTelegramId(ctx, cb.From.ID)
+	langCode := h.getUserLanguage(customer, cb.From)
 	callbackMessage := cb.Message.Message
 
 	slog.Info("admin triggered user sync")
@@ -139,7 +143,8 @@ func (h Handler) AdminToolsStatsCallbackHandler(ctx context.Context, b *bot.Bot,
 		return
 	}
 
-	langCode := cb.From.LanguageCode
+	customer, _ := h.customerRepository.FindByTelegramId(ctx, cb.From.ID)
+	langCode := h.getUserLanguage(customer, cb.From)
 	callbackMessage := cb.Message.Message
 
 	now := time.Now().UTC()

@@ -18,7 +18,8 @@ func (h Handler) AdminNotifyCallbackHandler(ctx context.Context, b *bot.Bot, upd
 		return
 	}
 
-	langCode := cb.From.LanguageCode
+	customer, _ := h.customerRepository.FindByTelegramId(ctx, cb.From.ID)
+	langCode := h.getUserLanguage(customer, cb.From)
 	callbackMessage := cb.Message.Message
 
 	_, err := b.EditMessageText(ctx, &bot.EditMessageTextParams{
@@ -46,7 +47,8 @@ func (h Handler) AdminNotifyAllCallbackHandler(ctx context.Context, b *bot.Bot, 
 	}
 
 	h.adminState.SetState(admin.StateAwaitingBroadcastText)
-	langCode := cb.From.LanguageCode
+	customer, _ := h.customerRepository.FindByTelegramId(ctx, cb.From.ID)
+	langCode := h.getUserLanguage(customer, cb.From)
 	callbackMessage := cb.Message.Message
 
 	_, err := b.EditMessageText(ctx, &bot.EditMessageTextParams{
@@ -72,7 +74,8 @@ func (h Handler) AdminNotifyDirectCallbackHandler(ctx context.Context, b *bot.Bo
 	}
 
 	h.adminState.SetState(admin.StateAwaitingDirectTargetID)
-	langCode := cb.From.LanguageCode
+	customer, _ := h.customerRepository.FindByTelegramId(ctx, cb.From.ID)
+	langCode := h.getUserLanguage(customer, cb.From)
 	callbackMessage := cb.Message.Message
 
 	_, err := b.EditMessageText(ctx, &bot.EditMessageTextParams{
@@ -107,7 +110,8 @@ func (h Handler) AdminMessageHandler(ctx context.Context, b *bot.Bot, update *mo
 		return
 	}
 
-	langCode := msg.From.LanguageCode
+	customer, _ := h.customerRepository.FindByTelegramId(ctx, msg.From.ID)
+	langCode := h.getUserLanguage(customer, msg.From)
 
 	switch currentState {
 	case admin.StateAwaitingBroadcastText:

@@ -85,5 +85,12 @@
   "admin_tools_stats_line_total": "Всего пользователей: %d",
   "admin_tools_stats_line_free_active": "Активных пользователей на бесплатном тарифе: %d",
   "admin_tools_stats_line_lite_active": "Активных пользователей на Lite-тарифе: %d",
-  "admin_tools_stats_line_premium_active": "Активных пользователей на Premium-тарифе: %d"
+  "admin_tools_stats_line_premium_active": "Активных пользователей на Premium-тарифе: %d",
+  "language_button": "🌐 Язык",
+  "language_menu_title": "🌐 <b>Язык</b>\\n\\nВыберите предпочитаемый язык:",
+  "language_name_en": "English",
+  "language_name_ru": "Русский",
+  "language_name_pt_br": "Português (Brasil)",
+  "language_name_fa": "فارسی",
+  "language_set_success": "Язык успешно изменён."
 }

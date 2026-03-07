@@ -57,8 +57,7 @@
   "guides_button": "📚 Guides",
   "guides_title": "📚 <b>Guides</b>\n\nChoose what you want to learn:",
   "guide_how_to_connect_button": "❓ How to connect?",
-  "guide_how_to_connect_text": "Here will be a detailed guide on how to connect. (Placeholder)"
-  ,
+  "guide_how_to_connect_text": "Here will be a detailed guide on how to connect. (Placeholder)",
   "admin_menu_title": "🛠️ <b>Admin panel</b>\n\nChoose an action:",
   "admin_notify_button": "📣 Notify",
   "admin_tools_button": "🧰 Tools",
@@ -86,5 +85,12 @@
   "admin_tools_stats_line_total": "Total users: %d",
   "admin_tools_stats_line_free_active": "Active free users: %d",
   "admin_tools_stats_line_lite_active": "Active Lite users: %d",
-  "admin_tools_stats_line_premium_active": "Active Premium users: %d"
+  "admin_tools_stats_line_premium_active": "Active Premium users: %d",
+  "language_button": "🌐 Language",
+  "language_menu_title": "🌐 <b>Language</b>\\n\\nChoose your preferred language:",
+  "language_name_en": "English",
+  "language_name_ru": "Русский",
+  "language_name_pt_br": "Português (Brasil)",
+  "language_name_fa": "فارسی",
+  "language_set_success": "Your language has been updated."
 }

@@ -33,15 +33,15 @@ func (h Handler) CreateCustomerIfNotExistMiddleware(next bot.HandlerFunc) bot.Ha
 		if existingCustomer == nil {
 			existingCustomer, err = h.customerRepository.Create(ctx, &database.Customer{
 				TelegramID: telegramId,
-				Language:   langCode,
+				Language:   normalizeLanguageCode(langCode),
 			})
 			if err != nil {
 				slog.Error("error creating customer", "error", err)
 				return
 			}
-		} else {
+		} else if existingCustomer.Language == "" {
 			updates := map[string]interface{}{
-				"language": langCode,
+				"language": normalizeLanguageCode(langCode),
 			}
 
 			err = h.customerRepository.UpdateFields(ctx, existingCustomer.ID, updates)
@@ -49,6 +49,7 @@ func (h Handler) CreateCustomerIfNotExistMiddleware(next bot.HandlerFunc) bot.Ha
 				slog.Error("Error updating customer", "error", err)
 				return
 			}
+			existingCustomer.Language = normalizeLanguageCode(langCode)
 		}
 
 		next(ctx, b, update)
@@ -83,9 +84,17 @@ func (h Handler) SuspiciousUserFilterMiddleware(next bot.HandlerFunc) bot.Handle
 
 		if config.GetBlockedTelegramIds()[userID] {
 			slog.Warn("blocked user by telegram id", "userId", utils.MaskHalfInt64(userID))
+			customer, _ := h.customerRepository.FindByTelegramId(ctx, userID)
+			var from *models.User
+			if update.Message != nil {
+				from = update.Message.From
+			} else {
+				from = update.CallbackQuery.From
+			}
+			effectiveLang := h.getUserLanguage(customer, from)
 			_, err := b.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID:    chatID,
-				Text:      h.translation.GetText(langCode, "access_denied"),
+				Text:      h.translation.GetText(effectiveLang, "access_denied"),
 				ParseMode: models.ParseModeHTML,
 			})
 			if err != nil {
@@ -102,9 +111,17 @@ func (h Handler) SuspiciousUserFilterMiddleware(next bot.HandlerFunc) bot.Handle
 
 		if utils.IsSuspiciousUser(username, firstName, lastName) {
 			slog.Warn("suspicious user blocked", "userId", utils.MaskHalfInt64(userID))
+			customer, _ := h.customerRepository.FindByTelegramId(ctx, userID)
+			var from *models.User
+			if update.Message != nil {
+				from = update.Message.From
+			} else {
+				from = update.CallbackQuery.From
+			}
+			effectiveLang := h.getUserLanguage(customer, from)
 			_, err := b.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID:    chatID,
-				Text:      h.translation.GetText(langCode, "access_denied"),
+				Text:      h.translation.GetText(effectiveLang, "access_denied"),
 				ParseMode: models.ParseModeHTML,
 			})
 			if err != nil {
