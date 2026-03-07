@@ -41,8 +41,15 @@ func (h Handler) ProfileCallbackHandler(ctx context.Context, b *bot.Bot, update 
 	}
 
 	plan := h.translation.GetText(langCode, "profile_plan_none")
-	if customer != nil && customer.SubscriptionLink != nil && customer.ExpireAt != nil && customer.ExpireAt.After(time.Now()) {
-		plan = h.translation.GetText(langCode, "profile_plan_free")
+	if customer != nil {
+		switch customer.Plan {
+		case "free":
+			plan = h.translation.GetText(langCode, "profile_plan_free")
+		case "lite":
+			plan = h.translation.GetText(langCode, "plan_lite_button")
+		case "premium":
+			plan = h.translation.GetText(langCode, "plan_premium_button")
+		}
 	}
 
 	diamonds := 0

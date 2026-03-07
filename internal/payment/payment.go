@@ -111,6 +111,12 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 		return err
 	}
 
+	// Determine plan from context (default to lite)
+	plan, _ := ctx.Value("plan").(string)
+	if plan == "" {
+		plan = "lite"
+	}
+
 	customerFilesToUpdate := map[string]interface{}{
 		"subscription_link": user.SubscriptionUrl,
 		"expire_at":         user.ExpireAt,
@@ -135,10 +141,6 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 	}
 
 	// Award diamonds based on plan and period
-	plan, _ := ctx.Value("plan").(string)
-	if plan == "" {
-		plan = "lite"
-	}
 	baseMonthly := 0
 	switch plan {
 	case "premium":
