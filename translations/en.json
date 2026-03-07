@@ -73,5 +73,18 @@
   "admin_notify_direct_not_found": "❌ No user with this Telegram ID was found in the bot.",
   "admin_notify_direct_message_prompt": "Send the message you want to deliver to this user.",
   "admin_notify_direct_done": "✅ Message has been sent to the selected user.",
-  "admin_tools_placeholder": "🧰 <b>Admin tools</b>\n\nThis section will contain additional tools in the future."
+  "admin_tools_menu_title": "🧰 <b>Admin tools</b>\n\nChoose what you want to do:",
+  "admin_tools_reset_diamonds_button": "💎 Reset diamonds of users",
+  "admin_tools_sync_button": "🔄 User sync",
+  "admin_tools_stats_button": "📊 Users information",
+  "admin_tools_reset_diamonds_prompt": "⚠️ <b>Warning</b>\n\nYou are about to reset the diamonds balance for <b>all users</b>. This action cannot be undone.\n\nAre you sure you want to continue?",
+  "admin_tools_reset_diamonds_confirm_button": "✅ Yes, reset diamonds",
+  "admin_tools_reset_diamonds_cancel_button": "❌ Cancel",
+  "admin_tools_reset_diamonds_done": "✅ Diamonds have been reset for all users.",
+  "admin_tools_sync_done": "✅ User sync has been run. Check the logs for detailed results.",
+  "admin_tools_stats_title": "📊 <b>Users information</b>",
+  "admin_tools_stats_line_total": "Total users: %d",
+  "admin_tools_stats_line_free_active": "Active free users: %d",
+  "admin_tools_stats_line_lite_active": "Active Lite users: %d",
+  "admin_tools_stats_line_premium_active": "Active Premium users: %d"
 }

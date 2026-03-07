@@ -72,5 +72,18 @@
   "admin_notify_direct_not_found": "❌ Пользователь с таким Telegram ID не найден в базе бота.",
   "admin_notify_direct_message_prompt": "Отправьте текст сообщения, которое нужно доставить этому пользователю.",
   "admin_notify_direct_done": "✅ Сообщение отправлено выбранному пользователю.",
-  "admin_tools_placeholder": "🧰 <b>Инструменты администратора</b>\n\nВ будущем здесь появятся дополнительные инструменты."
+  "admin_tools_menu_title": "🧰 <b>Инструменты администратора</b>\n\nВыберите действие:",
+  "admin_tools_reset_diamonds_button": "💎 Сбросить бриллианты у пользователей",
+  "admin_tools_sync_button": "🔄 Синхронизация пользователей",
+  "admin_tools_stats_button": "📊 Информация о пользователях",
+  "admin_tools_reset_diamonds_prompt": "⚠️ <b>Внимание</b>\n\nВы собираетесь сбросить баланс бриллиантов у <b>всех пользователей</b>. Это действие нельзя отменить.\n\nВы уверены, что хотите продолжить?",
+  "admin_tools_reset_diamonds_confirm_button": "✅ Да, сбросить бриллианты",
+  "admin_tools_reset_diamonds_cancel_button": "❌ Отмена",
+  "admin_tools_reset_diamonds_done": "✅ Бриллианты были сброшены для всех пользователей.",
+  "admin_tools_sync_done": "✅ Синхронизация пользователей выполнена. Подробности смотрите в логах.",
+  "admin_tools_stats_title": "📊 <b>Информация о пользователях</b>",
+  "admin_tools_stats_line_total": "Всего пользователей: %d",
+  "admin_tools_stats_line_free_active": "Активных пользователей на бесплатном тарифе: %d",
+  "admin_tools_stats_line_lite_active": "Активных пользователей на Lite-тарифе: %d",
+  "admin_tools_stats_line_premium_active": "Активных пользователей на Premium-тарифе: %d"
 }

@@ -19,4 +19,8 @@ const (
 	CallbackAdminNotifyAll   = "admin_notify_all"
 	CallbackAdminNotifyDirect = "admin_notify_direct"
 	CallbackAdminTools    = "admin_tools"
+	CallbackAdminToolsResetDiamonds = "admin_tools_reset_diamonds"
+	CallbackAdminToolsResetDiamondsConfirm = "admin_tools_reset_diamonds_confirm"
+	CallbackAdminToolsSync = "admin_tools_sync"
+	CallbackAdminToolsStats = "admin_tools_stats"
 )

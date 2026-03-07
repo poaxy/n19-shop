@@ -28,10 +28,11 @@ type Customer struct {
 	SubscriptionLink *string    `db:"subscription_link"`
 	Language         string     `db:"language"`
 	Diamonds         int        `db:"diamonds"`
+	Plan             string     `db:"plan"`
 }
 
 func (cr *CustomerRepository) FindByExpirationRange(ctx context.Context, startDate, endDate time.Time) (*[]Customer, error) {
-	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "diamonds").
+	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "diamonds", "plan").
 		From("customer").
 		Where(
 			sq.And{
@@ -64,6 +65,7 @@ func (cr *CustomerRepository) FindByExpirationRange(ctx context.Context, startDa
 			&customer.SubscriptionLink,
 			&customer.Language,
 			&customer.Diamonds,
+			&customer.Plan,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan customer row: %w", err)
@@ -79,7 +81,7 @@ func (cr *CustomerRepository) FindByExpirationRange(ctx context.Context, startDa
 }
 
 func (cr *CustomerRepository) FindById(ctx context.Context, id int64) (*Customer, error) {
-	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "diamonds").
+	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "diamonds", "plan").
 		From("customer").
 		Where(sq.Eq{"id": id}).
 		PlaceholderFormat(sq.Dollar)
@@ -99,6 +101,7 @@ func (cr *CustomerRepository) FindById(ctx context.Context, id int64) (*Customer
 		&customer.SubscriptionLink,
 		&customer.Language,
 		&customer.Diamonds,
+		&customer.Plan,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -110,7 +113,7 @@ func (cr *CustomerRepository) FindById(ctx context.Context, id int64) (*Customer
 }
 
 func (cr *CustomerRepository) FindByTelegramId(ctx context.Context, telegramId int64) (*Customer, error) {
-	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "diamonds").
+	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "diamonds", "plan").
 		From("customer").
 		Where(sq.Eq{"telegram_id": telegramId}).
 		PlaceholderFormat(sq.Dollar)
@@ -130,6 +133,7 @@ func (cr *CustomerRepository) FindByTelegramId(ctx context.Context, telegramId i
 		&customer.SubscriptionLink,
 		&customer.Language,
 		&customer.Diamonds,
+		&customer.Plan,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -149,7 +153,7 @@ func (cr *CustomerRepository) FindOrCreate(ctx context.Context, customer *Custom
 		INSERT INTO customer (telegram_id, expire_at, language)
 		VALUES ($1, $2, $3)
 		ON CONFLICT (telegram_id) DO UPDATE SET telegram_id = customer.telegram_id
-		RETURNING id, telegram_id, expire_at, created_at, subscription_link, language, diamonds
+		RETURNING id, telegram_id, expire_at, created_at, subscription_link, language, diamonds, plan
 	`
 
 	row := cr.pool.QueryRow(ctx, query, customer.TelegramID, customer.ExpireAt, customer.Language)
@@ -162,6 +166,7 @@ func (cr *CustomerRepository) FindOrCreate(ctx context.Context, customer *Custom
 		&result.SubscriptionLink,
 		&result.Language,
 		&result.Diamonds,
+		&result.Plan,
 	); err != nil {
 		return nil, fmt.Errorf("failed to find or create customer: %w", err)
 	}
@@ -213,7 +218,7 @@ func (cr *CustomerRepository) UpdateFields(ctx context.Context, id int64, update
 }
 
 func (cr *CustomerRepository) FindByTelegramIds(ctx context.Context, telegramIDs []int64) ([]Customer, error) {
-	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "diamonds").
+	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "diamonds", "plan").
 		From("customer").
 		Where(sq.Eq{"telegram_id": telegramIDs}).
 		PlaceholderFormat(sq.Dollar)
@@ -240,6 +245,7 @@ func (cr *CustomerRepository) FindByTelegramIds(ctx context.Context, telegramIDs
 			&customer.SubscriptionLink,
 			&customer.Language,
 			&customer.Diamonds,
+			&customer.Plan,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan customer row: %w", err)
@@ -372,4 +378,51 @@ func (cr *CustomerRepository) ListAllTelegramIds(ctx context.Context) ([]int64, 
 		return nil, fmt.Errorf("error iterating telegram ids rows: %w", err)
 	}
 	return ids, nil
+}
+
+func (cr *CustomerRepository) ResetAllDiamonds(ctx context.Context) error {
+	sqlStr := "UPDATE customer SET diamonds = 0"
+	_, err := cr.pool.Exec(ctx, sqlStr)
+	if err != nil {
+		return fmt.Errorf("failed to reset diamonds: %w", err)
+	}
+	return nil
+}
+
+func (cr *CustomerRepository) CountAll(ctx context.Context) (int, error) {
+	buildSelect := sq.Select("COUNT(*)").
+		From("customer").
+		PlaceholderFormat(sq.Dollar)
+
+	sqlStr, args, err := buildSelect.ToSql()
+	if err != nil {
+		return 0, fmt.Errorf("failed to build count all customers query: %w", err)
+	}
+
+	var count int
+	if err := cr.pool.QueryRow(ctx, sqlStr, args...).Scan(&count); err != nil {
+		return 0, fmt.Errorf("failed to scan count all customers: %w", err)
+	}
+	return count, nil
+}
+
+func (cr *CustomerRepository) CountActiveByPlan(ctx context.Context, plan string, now time.Time) (int, error) {
+	buildSelect := sq.Select("COUNT(*)").
+		From("customer").
+		Where(sq.And{
+			sq.Eq{"plan": plan},
+			sq.Gt{"expire_at": now},
+		}).
+		PlaceholderFormat(sq.Dollar)
+
+	sqlStr, args, err := buildSelect.ToSql()
+	if err != nil {
+		return 0, fmt.Errorf("failed to build count active by plan query: %w", err)
+	}
+
+	var count int
+	if err := cr.pool.QueryRow(ctx, sqlStr, args...).Scan(&count); err != nil {
+		return 0, fmt.Errorf("failed to scan count active by plan: %w", err)
+	}
+	return count, nil
 }

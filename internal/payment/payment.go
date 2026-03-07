@@ -114,6 +114,7 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 	customerFilesToUpdate := map[string]interface{}{
 		"subscription_link": user.SubscriptionUrl,
 		"expire_at":         user.ExpireAt,
+		"plan":              plan,
 	}
 
 	err = s.customerRepository.UpdateFields(ctx, customer.ID, customerFilesToUpdate)
@@ -553,6 +554,7 @@ func (s PaymentService) ActivateTrial(ctx context.Context, telegramId int64) (st
 		"subscription_link": user.GetSubscriptionUrl(),
 		"expire_at":         user.GetExpireAt(),
 		"diamonds":          customer.Diamonds + 1,
+		"plan":              "free",
 	}
 
 	err = s.customerRepository.UpdateFields(ctx, customer.ID, customerFilesToUpdate)
