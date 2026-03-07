@@ -70,7 +70,7 @@ func isSupportedLanguage(code string) bool {
 
 func (h Handler) LanguageMenuCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	cb := update.CallbackQuery
-	if cb == nil || cb.Message == nil {
+	if cb == nil || cb.Message.Message == nil {
 		return
 	}
 
@@ -114,7 +114,7 @@ func (h Handler) LanguageMenuCallbackHandler(ctx context.Context, b *bot.Bot, up
 
 func (h Handler) LanguageSelectCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	cb := update.CallbackQuery
-	if cb == nil || cb.Message == nil {
+	if cb == nil || cb.Message.Message == nil {
 		return
 	}
 

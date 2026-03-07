@@ -128,7 +128,7 @@ func (h Handler) StartCallbackHandler(ctx context.Context, b *bot.Bot, update *m
 		return
 	}
 
-	langCode := h.getUserLanguage(existingCustomer, callback.From)
+	langCode := h.getUserLanguage(existingCustomer, &callback.From)
 
 	var text string
 	var inlineKeyboard [][]models.InlineKeyboardButton

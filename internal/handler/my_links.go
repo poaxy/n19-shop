@@ -20,7 +20,7 @@ func (h Handler) MyLinksCallbackHandler(ctx context.Context, b *bot.Bot, update 
 		return
 	}
 
-	langCode := h.getUserLanguage(customer, cb.From)
+	langCode := h.getUserLanguage(customer, &cb.From)
 
 	var text string
 	if customer == nil || customer.SubscriptionLink == nil || customer.ExpireAt == nil || !customer.ExpireAt.After(time.Now()) {

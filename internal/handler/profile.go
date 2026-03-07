@@ -21,7 +21,7 @@ func (h Handler) ProfileCallbackHandler(ctx context.Context, b *bot.Bot, update 
 		return
 	}
 
-	langCode := h.getUserLanguage(customer, cb.From)
+	langCode := h.getUserLanguage(customer, &cb.From)
 
 	role := "customer"
 	if cb.From.ID == config.GetAdminTelegramId() {
