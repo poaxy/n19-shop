@@ -18,7 +18,7 @@ import (
 func (h Handler) BuyCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	callback := update.CallbackQuery.Message.Message
 	customer, _ := h.customerRepository.FindByTelegramId(ctx, update.CallbackQuery.From.ID)
-	langCode := h.getUserLanguage(customer, update.CallbackQuery.From)
+	langCode := h.getUserLanguage(customer, &update.CallbackQuery.From)
 
 	keyboard := [][]models.InlineKeyboardButton{
 		{
@@ -59,7 +59,7 @@ func (h Handler) PlanCallbackHandler(ctx context.Context, b *bot.Bot, update *mo
 	callback := update.CallbackQuery.Message.Message
 	callbackQuery := parseCallbackData(update.CallbackQuery.Data)
 	customer, _ := h.customerRepository.FindByTelegramId(ctx, update.CallbackQuery.From.ID)
-	langCode := h.getUserLanguage(customer, update.CallbackQuery.From)
+	langCode := h.getUserLanguage(customer, &update.CallbackQuery.From)
 
 	tier := callbackQuery["tier"]
 	if tier == "" {
@@ -143,7 +143,7 @@ func (h Handler) SellCallbackHandler(ctx context.Context, b *bot.Bot, update *mo
 	callback := update.CallbackQuery.Message.Message
 	callbackQuery := parseCallbackData(update.CallbackQuery.Data)
 	customer, _ := h.customerRepository.FindByTelegramId(ctx, update.CallbackQuery.From.ID)
-	langCode := h.getUserLanguage(customer, update.CallbackQuery.From)
+	langCode := h.getUserLanguage(customer, &update.CallbackQuery.From)
 	plan := callbackQuery["plan"]
 	month := callbackQuery["month"]
 	amount := callbackQuery["amount"]
@@ -236,7 +236,7 @@ func (h Handler) DirectPaymentCallbackHandler(ctx context.Context, b *bot.Bot, u
 	callback := update.CallbackQuery.Message.Message
 	callbackQuery := parseCallbackData(update.CallbackQuery.Data)
 	customer, _ := h.customerRepository.FindByTelegramId(ctx, update.CallbackQuery.From.ID)
-	langCode := h.getUserLanguage(customer, update.CallbackQuery.From)
+	langCode := h.getUserLanguage(customer, &update.CallbackQuery.From)
 	plan := callbackQuery["plan"]
 	month := callbackQuery["month"]
 	amount := callbackQuery["amount"]
@@ -301,7 +301,7 @@ func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update 
 		return
 	}
 
-	langCode := h.getUserLanguage(customer, update.CallbackQuery.From)
+	langCode := h.getUserLanguage(customer, &update.CallbackQuery.From)
 	backCallback := fmt.Sprintf("%s?month=%d&amount=%d", CallbackSell, month, price)
 	if invoiceType != database.InvoiceTypeTelegram && hasDirectPaymentMethods() && config.IsTelegramStarsEnabled() {
 		backCallback = fmt.Sprintf("%s?month=%d&amount=%d", CallbackDirect, month, price)

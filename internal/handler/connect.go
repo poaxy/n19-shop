@@ -76,7 +76,7 @@ func (h Handler) ConnectCallbackHandler(ctx context.Context, b *bot.Bot, update 
 		return
 	}
 
-	langCode := h.getUserLanguage(customer, update.CallbackQuery.From)
+	langCode := h.getUserLanguage(customer, &update.CallbackQuery.From)
 
 	var markup [][]models.InlineKeyboardButton
 	if config.GetMiniAppURL() != "" {

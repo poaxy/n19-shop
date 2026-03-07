@@ -11,7 +11,7 @@ import (
 func (h Handler) GuidesCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	cb := update.CallbackQuery
 	customer, _ := h.customerRepository.FindByTelegramId(ctx, cb.From.ID)
-	langCode := h.getUserLanguage(customer, cb.From)
+	langCode := h.getUserLanguage(customer, &cb.From)
 
 	_, err := b.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:    cb.Message.Message.Chat.ID,
@@ -37,7 +37,7 @@ func (h Handler) GuidesCallbackHandler(ctx context.Context, b *bot.Bot, update *
 func (h Handler) GuideHowToConnectCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	cb := update.CallbackQuery
 	customer, _ := h.customerRepository.FindByTelegramId(ctx, cb.From.ID)
-	langCode := h.getUserLanguage(customer, cb.From)
+	langCode := h.getUserLanguage(customer, &cb.From)
 
 	_, err := b.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:    cb.Message.Message.Chat.ID,

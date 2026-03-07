@@ -28,7 +28,7 @@ func (h Handler) TrialCallbackHandler(ctx context.Context, b *bot.Bot, update *m
 		return
 	}
 	callback := update.CallbackQuery.Message.Message
-	langCode := h.getUserLanguage(c, update.CallbackQuery.From)
+	langCode := h.getUserLanguage(c, &update.CallbackQuery.From)
 	_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:    callback.Chat.ID,
 		MessageID: callback.ID,
@@ -63,7 +63,7 @@ func (h Handler) ActivateTrialCallbackHandler(ctx context.Context, b *bot.Bot, u
 	callback := update.CallbackQuery.Message.Message
 	ctxWithUsername := context.WithValue(ctx, "username", update.CallbackQuery.From.Username)
 	_, err = h.paymentService.ActivateTrial(ctxWithUsername, update.CallbackQuery.From.ID)
-	langCode := h.getUserLanguage(c, update.CallbackQuery.From)
+	langCode := h.getUserLanguage(c, &update.CallbackQuery.From)
 	_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      callback.Chat.ID,
 		MessageID:   callback.ID,

@@ -80,7 +80,7 @@ func (h Handler) LanguageMenuCallbackHandler(ctx context.Context, b *bot.Bot, up
 		return
 	}
 
-	langCode := h.getUserLanguage(customer, cb.From)
+	langCode := h.getUserLanguage(customer, &cb.From)
 	chatID := cb.Message.Message.Chat.ID
 
 	var keyboard [][]models.InlineKeyboardButton
@@ -155,7 +155,7 @@ func (h Handler) LanguageSelectCallbackHandler(ctx context.Context, b *bot.Bot, 
 		customer.Language = selectedCode
 	}
 
-	langCode := h.getUserLanguage(customer, cb.From)
+	langCode := h.getUserLanguage(customer, &cb.From)
 	chatID := cb.Message.Message.Chat.ID
 
 	var text string

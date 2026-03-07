@@ -11,7 +11,7 @@ import (
 
 func (h Handler) ReferralCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	customer, _ := h.customerRepository.FindByTelegramId(ctx, update.CallbackQuery.From.ID)
-	langCode := h.getUserLanguage(customer, update.CallbackQuery.From)
+	langCode := h.getUserLanguage(customer, &update.CallbackQuery.From)
 	refCode := customer.TelegramID
 
 	refLink := fmt.Sprintf("https://telegram.me/share/url?url=https://t.me/%s?start=ref_%d", update.CallbackQuery.Message.Message.From.Username, refCode)
