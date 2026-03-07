@@ -11,7 +11,6 @@ import (
 	"github.com/go-telegram/bot/models"
 
 	"remnawave-tg-shop-bot/internal/config"
-	"remnawave-tg-shop-bot/utils"
 )
 
 func (h Handler) AdminToolsCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
