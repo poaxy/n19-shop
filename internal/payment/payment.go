@@ -145,8 +145,8 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 	}
 
 	// Plan change notification (upgrade/renewal)
-	if user.ExpireAt != nil {
-		if notifyErr := s.notifyPlanChange(ctx, customer, oldPlan, oldExpireAt, plan, *user.ExpireAt); notifyErr != nil {
+	if !user.ExpireAt.IsZero() {
+		if notifyErr := s.notifyPlanChange(ctx, customer, oldPlan, oldExpireAt, plan, user.ExpireAt); notifyErr != nil {
 			slog.Error("error sending plan change notification", "error", notifyErr, "customer_id", utils.MaskHalfInt64(customer.ID))
 		}
 	}
