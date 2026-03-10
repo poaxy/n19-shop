@@ -342,3 +342,5 @@ fabric.properties
 # Compiled binaries
 app
 /bin/
+
+DEPLOYMENT_VPS_STRIPE.md

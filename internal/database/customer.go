@@ -380,6 +380,48 @@ func (cr *CustomerRepository) ListAllTelegramIds(ctx context.Context) ([]int64, 
 	return ids, nil
 }
 
+func (cr *CustomerRepository) ListWithDiamonds(ctx context.Context) ([]Customer, error) {
+	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "diamonds", "plan").
+		From("customer").
+		Where(sq.Gt{"diamonds": 0}).
+		PlaceholderFormat(sq.Dollar)
+
+	sqlStr, args, err := buildSelect.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build select customers with diamonds query: %w", err)
+	}
+
+	rows, err := cr.pool.Query(ctx, sqlStr, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query customers with diamonds: %w", err)
+	}
+	defer rows.Close()
+
+	var customers []Customer
+	for rows.Next() {
+		var customer Customer
+		err := rows.Scan(
+			&customer.ID,
+			&customer.TelegramID,
+			&customer.ExpireAt,
+			&customer.CreatedAt,
+			&customer.SubscriptionLink,
+			&customer.Language,
+			&customer.Diamonds,
+			&customer.Plan,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan customer row: %w", err)
+		}
+		customers = append(customers, customer)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating customers with diamonds rows: %w", err)
+	}
+
+	return customers, nil
+}
+
 func (cr *CustomerRepository) ResetAllDiamonds(ctx context.Context) error {
 	sqlStr := "UPDATE customer SET diamonds = 0"
 	_, err := cr.pool.Exec(ctx, sqlStr)

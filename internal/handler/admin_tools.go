@@ -1,9 +1,12 @@
 package handler
 
 import (
+	"bytes"
 	"context"
+	"encoding/csv"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 	"time"
 
@@ -33,6 +36,7 @@ func (h Handler) AdminToolsCallbackHandler(ctx context.Context, b *bot.Bot, upda
 				{{Text: h.translation.GetText(langCode, "admin_tools_reset_diamonds_button"), CallbackData: CallbackAdminToolsResetDiamonds}},
 				{{Text: h.translation.GetText(langCode, "admin_tools_sync_button"), CallbackData: CallbackAdminToolsSync}},
 				{{Text: h.translation.GetText(langCode, "admin_tools_stats_button"), CallbackData: CallbackAdminToolsStats}},
+				{{Text: h.translation.GetText(langCode, "admin_tools_download_db_button"), CallbackData: CallbackAdminToolsDownloadDB}},
 				{{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackStart}},
 			},
 		},
@@ -195,6 +199,104 @@ func (h Handler) AdminToolsStatsCallbackHandler(ctx context.Context, b *bot.Bot,
 	})
 	if err != nil {
 		slog.Error("error sending admin stats", "error", err)
+	}
+}
+
+func (h Handler) AdminToolsDownloadDatabaseCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	cb := update.CallbackQuery
+	if cb.From.ID != config.GetAdminTelegramId() {
+		return
+	}
+
+	customer, _ := h.customerRepository.FindByTelegramId(ctx, cb.From.ID)
+	langCode := h.getUserLanguage(customer, &cb.From)
+
+	// Rate limit: once per minute per admin
+	const rateLimitKeyOffset int64 = 1000000000000
+	cacheKey := cb.From.ID + rateLimitKeyOffset
+
+	now := time.Now().Unix()
+	if last, ok := h.cache.Get(cacheKey); ok {
+		if now-int64(last) < 60 {
+			_, _ = b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:    cb.Message.Message.Chat.ID,
+				ParseMode: models.ParseModeHTML,
+				Text:      h.translation.GetText(langCode, "admin_tools_download_db_too_frequent"),
+			})
+			return
+		}
+	}
+	h.cache.Set(cacheKey, int(now))
+
+	customers, err := h.customerRepository.ListWithDiamonds(ctx)
+	if err != nil {
+		slog.Error("error listing customers with diamonds", "error", err)
+		_, _ = b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    cb.Message.Message.Chat.ID,
+			ParseMode: models.ParseModeHTML,
+			Text:      h.translation.GetText(langCode, "admin_tools_download_db_error"),
+		})
+		return
+	}
+
+	var buf bytes.Buffer
+	writer := csv.NewWriter(&buf)
+
+	if err := writer.Write([]string{"telegram_id", "diamonds", "plan"}); err != nil {
+		slog.Error("error writing csv header", "error", err)
+		_, _ = b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    cb.Message.Message.Chat.ID,
+			ParseMode: models.ParseModeHTML,
+			Text:      h.translation.GetText(langCode, "admin_tools_download_db_error"),
+		})
+		return
+	}
+
+	for _, c := range customers {
+		record := []string{
+			strconv.FormatInt(c.TelegramID, 10),
+			strconv.Itoa(c.Diamonds),
+			c.Plan,
+		}
+		if err := writer.Write(record); err != nil {
+			slog.Error("error writing csv record", "error", err)
+			_, _ = b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:    cb.Message.Message.Chat.ID,
+				ParseMode: models.ParseModeHTML,
+				Text:      h.translation.GetText(langCode, "admin_tools_download_db_error"),
+			})
+			return
+		}
+	}
+
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		slog.Error("error flushing csv writer", "error", err)
+		_, _ = b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    cb.Message.Message.Chat.ID,
+			ParseMode: models.ParseModeHTML,
+			Text:      h.translation.GetText(langCode, "admin_tools_download_db_error"),
+		})
+		return
+	}
+
+	filename := fmt.Sprintf("customers-with-diamonds-%s.csv", time.Now().UTC().Format("20060102-1504"))
+
+	_, err = b.SendDocument(ctx, &bot.SendDocumentParams{
+		ChatID: cb.Message.Message.Chat.ID,
+		Document: &models.InputFileUpload{
+			Filename: filename,
+			Data:     bytes.NewReader(buf.Bytes()),
+		},
+	})
+	if err != nil {
+		slog.Error("error sending csv document", "error", err)
+		_, _ = b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    cb.Message.Message.Chat.ID,
+			ParseMode: models.ParseModeHTML,
+			Text:      h.translation.GetText(langCode, "admin_tools_download_db_error"),
+		})
+		return
 	}
 }
 

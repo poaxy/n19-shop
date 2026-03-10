@@ -164,6 +164,7 @@ func main() {
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackAdminToolsResetDiamondsConfirm, bot.MatchTypeExact, h.AdminToolsResetDiamondsConfirmCallbackHandler, isAdminMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackAdminToolsSync, bot.MatchTypeExact, h.AdminToolsSyncCallbackHandler, isAdminMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackAdminToolsStats, bot.MatchTypeExact, h.AdminToolsStatsCallbackHandler, isAdminMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackAdminToolsDownloadDB, bot.MatchTypeExact, h.AdminToolsDownloadDatabaseCallbackHandler, isAdminMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackSell, bot.MatchTypePrefix, h.SellCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackLanguageSelectPrefix, bot.MatchTypePrefix, h.LanguageSelectCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackDirect, bot.MatchTypePrefix, h.DirectPaymentCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
