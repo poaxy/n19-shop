@@ -63,6 +63,19 @@ func NewPaymentService(
 	}
 }
 
+func planRank(plan string) int {
+	switch plan {
+	case "free":
+		return 1
+	case "lite":
+		return 2
+	case "premium":
+		return 3
+	default:
+		return 0
+	}
+}
+
 func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int64) error {
 	purchase, err := s.purchaseRepository.FindById(ctx, purchaseId)
 	if err != nil {
@@ -82,6 +95,9 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 	if customer == nil {
 		return fmt.Errorf("customer %s not found", utils.MaskHalfInt64(purchase.CustomerID))
 	}
+
+	oldPlan := customer.Plan
+	oldExpireAt := customer.ExpireAt
 
 	if messageId, b := s.cache.Get(purchase.ID); b {
 		_, err = s.telegramBot.DeleteMessage(ctx, &bot.DeleteMessageParams{
@@ -126,6 +142,13 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 	err = s.customerRepository.UpdateFields(ctx, customer.ID, customerFilesToUpdate)
 	if err != nil {
 		return err
+	}
+
+	// Plan change notification (upgrade/renewal)
+	if user.ExpireAt != nil {
+		if notifyErr := s.notifyPlanChange(ctx, customer, oldPlan, oldExpireAt, plan, *user.ExpireAt); notifyErr != nil {
+			slog.Error("error sending plan change notification", "error", notifyErr, "customer_id", utils.MaskHalfInt64(customer.ID))
+		}
 	}
 
 	// If this is the first time the user receives a subscription link, send them a one-time info message.
@@ -292,6 +315,51 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 	slog.Info("purchase processed", "purchase_id", utils.MaskHalfInt64(purchase.ID), "type", purchase.InvoiceType, "customer_id", utils.MaskHalfInt64(customer.ID))
 
 	return nil
+}
+
+func (s PaymentService) notifyPlanChange(ctx context.Context, customer *database.Customer, oldPlan string, oldExpireAt *time.Time, newPlan string, newExpireAt time.Time) error {
+	oldRank := planRank(oldPlan)
+	newRank := planRank(newPlan)
+
+	if newRank == 0 {
+		return nil
+	}
+
+	var key string
+	switch {
+	case oldRank == 0 && newRank > 0:
+		key = "plan_upgraded_message"
+	case newRank > oldRank:
+		key = "plan_upgraded_message"
+	case newRank == oldRank:
+		if oldExpireAt != nil && newExpireAt.After(*oldExpireAt) {
+			key = "plan_renewed_message"
+		}
+	}
+
+	if key == "" {
+		return nil
+	}
+
+	expireDate := newExpireAt.Format("02.01.2006")
+	var text string
+	switch key {
+	case "plan_upgraded_message":
+		text = fmt.Sprintf(s.translation.GetText(customer.Language, key), newPlan, expireDate)
+	case "plan_renewed_message":
+		text = fmt.Sprintf(s.translation.GetText(customer.Language, key), newPlan, expireDate)
+	}
+
+	if text == "" {
+		return nil
+	}
+
+	_, err := s.telegramBot.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:    customer.TelegramID,
+		ParseMode: models.ParseModeHTML,
+		Text:      text,
+	})
+	return err
 }
 
 func (s PaymentService) createConnectKeyboard(customer *database.Customer) [][]models.InlineKeyboardButton {

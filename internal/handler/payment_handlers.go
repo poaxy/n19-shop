@@ -15,24 +15,63 @@ import (
 	"remnawave-tg-shop-bot/internal/database"
 )
 
+func planRank(plan string) int {
+	switch plan {
+	case "free":
+		return 1
+	case "lite":
+		return 2
+	case "premium":
+		return 3
+	default:
+		return 0
+	}
+}
+
+func getActivePlan(customer *database.Customer, now time.Time) string {
+	if customer == nil {
+		return "none"
+	}
+	if customer.ExpireAt == nil {
+		return "none"
+	}
+	if !customer.ExpireAt.After(now) {
+		return "none"
+	}
+	if customer.Plan == "" {
+		return "none"
+	}
+	return customer.Plan
+}
+
 func (h Handler) BuyCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	callback := update.CallbackQuery.Message.Message
 	customer, _ := h.customerRepository.FindByTelegramId(ctx, update.CallbackQuery.From.ID)
 	langCode := h.getUserLanguage(customer, &update.CallbackQuery.From)
 
-	keyboard := [][]models.InlineKeyboardButton{
-		{
+	currentPlan := getActivePlan(customer, time.Now().UTC())
+	currentRank := planRank(currentPlan)
+
+	var keyboard [][]models.InlineKeyboardButton
+
+	liteRank := planRank("lite")
+	if liteRank >= currentRank {
+		keyboard = append(keyboard, []models.InlineKeyboardButton{
 			{
 				Text:         h.translation.GetText(langCode, "plan_lite_button"),
 				CallbackData: fmt.Sprintf("%s?tier=lite", CallbackPlan),
 			},
-		},
-		{
+		})
+	}
+
+	premiumRank := planRank("premium")
+	if premiumRank >= currentRank {
+		keyboard = append(keyboard, []models.InlineKeyboardButton{
 			{
 				Text:         h.translation.GetText(langCode, "plan_premium_button"),
 				CallbackData: fmt.Sprintf("%s?tier=premium", CallbackPlan),
 			},
-		},
+		})
 	}
 
 	keyboard = append(keyboard, []models.InlineKeyboardButton{
@@ -290,6 +329,21 @@ func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update 
 	}
 	if customer == nil {
 		slog.Error("Customer not found for payment", "chatID", callback.Chat.ID)
+		return
+	}
+
+	now := time.Now().UTC()
+	currentPlan := getActivePlan(customer, now)
+	if planRank(plan) < planRank(currentPlan) {
+		langCode := h.getUserLanguage(customer, &update.CallbackQuery.From)
+		_, sendErr := b.SendMessage(paymentCtx, &bot.SendMessageParams{
+			ChatID:    callback.Chat.ID,
+			ParseMode: models.ParseModeHTML,
+			Text:      h.translation.GetText(langCode, "buy_downgrade_forbidden"),
+		})
+		if sendErr != nil {
+			slog.Error("Error sending downgrade forbidden message", "error", sendErr)
+		}
 		return
 	}
 

@@ -279,6 +279,17 @@ func subscriptionChecker(subService *notification.SubscriptionService) *cron.Cro
 	if err != nil {
 		panic(err)
 	}
+
+	_, err = c.AddFunc("5 16 * * *", func() {
+		err := subService.ProcessRecentlyExpiredSubscriptions()
+		if err != nil {
+			slog.Error("Error sending recently expired subscription notifications", "error", err)
+		}
+	})
+
+	if err != nil {
+		panic(err)
+	}
 	return c
 }
 

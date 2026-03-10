@@ -125,6 +125,54 @@ func (s *SubscriptionService) ProcessSubscriptionExpiration() error {
 	return nil
 }
 
+func (s *SubscriptionService) ProcessRecentlyExpiredSubscriptions() error {
+	ctx := context.Background()
+	now := time.Now()
+	start := now.AddDate(0, 0, -1)
+
+	dbCustomers, err := s.customerRepository.FindByExpirationRange(ctx, start, now)
+	if err != nil {
+		slog.Error("Failed to get customers with recently expired subscriptions", "error", err)
+		return err
+	}
+	if dbCustomers == nil || len(*dbCustomers) == 0 {
+		return nil
+	}
+
+	for _, customer := range *dbCustomers {
+		if customer.ExpireAt == nil {
+			continue
+		}
+		if customer.ExpireAt.After(now) {
+			continue
+		}
+
+		expireDate := customer.ExpireAt.Format("02.01.2006")
+		text := fmt.Sprintf(
+			s.tm.GetText(customer.Language, "plan_expired_message"),
+			customer.Plan,
+			expireDate,
+		)
+
+		_, sendErr := s.telegramBot.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    customer.TelegramID,
+			Text:      text,
+			ParseMode: models.ParseModeHTML,
+		})
+		if sendErr != nil {
+			slog.Error("Failed to send expiration notification",
+				"customer_id", customer.ID,
+				"error", sendErr)
+			continue
+		}
+
+		slog.Info("Expiration notification sent successfully",
+			"customer_id", customer.ID)
+	}
+
+	return nil
+}
+
 func (s *SubscriptionService) getCustomersWithExpiringSubscriptions() (*[]database.Customer, error) {
 	now := time.Now()
 	endDate := now.AddDate(0, 0, 3)
