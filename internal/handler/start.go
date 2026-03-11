@@ -215,13 +215,17 @@ func (h Handler) buildStartKeyboard(existingCustomer *database.Customer, langCod
 func (h Handler) buildAdminStartKeyboard(langCode string) [][]models.InlineKeyboardButton {
 	var inlineKeyboard [][]models.InlineKeyboardButton
 
-	inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
-		{Text: h.translation.GetText(langCode, "admin_notify_button"), CallbackData: CallbackAdminNotify},
-	})
-
-	inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
-		{Text: h.translation.GetText(langCode, "admin_tools_button"), CallbackData: CallbackAdminTools},
-	})
+	inlineKeyboard = append(inlineKeyboard,
+		[]models.InlineKeyboardButton{
+			{Text: h.translation.GetText(langCode, "admin_notify_button"), CallbackData: CallbackAdminNotify},
+		},
+		[]models.InlineKeyboardButton{
+			{Text: h.translation.GetText(langCode, "admin_tools_pricing_button"), CallbackData: CallbackAdminPricing},
+		},
+		[]models.InlineKeyboardButton{
+			{Text: h.translation.GetText(langCode, "admin_tools_button"), CallbackData: CallbackAdminTools},
+		},
+	)
 
 	return inlineKeyboard
 }
