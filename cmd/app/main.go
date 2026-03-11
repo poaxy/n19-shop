@@ -16,6 +16,7 @@ import (
 	"remnawave-tg-shop-bot/internal/moynalog"
 	"remnawave-tg-shop-bot/internal/notification"
 	"remnawave-tg-shop-bot/internal/payment"
+	"remnawave-tg-shop-bot/internal/pricing"
 	"remnawave-tg-shop-bot/internal/remnawave"
 	"remnawave-tg-shop-bot/internal/stripe"
 	"remnawave-tg-shop-bot/internal/sync"
@@ -90,6 +91,8 @@ func main() {
 		panic(err)
 	}
 
+	pricingService := pricing.NewServiceFromEnv()
+
 	paymentService := payment.NewPaymentService(tm, purchaseRepository, remnawaveClient, customerRepository, b, cryptoPayClient, yookasaClient, referralRepository, cache, moynalogClient, stripeClient)
 
 	cronScheduler := setupInvoiceChecker(purchaseRepository, cryptoPayClient, paymentService, yookasaClient)
@@ -106,7 +109,7 @@ func main() {
 
 	syncService := sync.NewSyncService(remnawaveClient, customerRepository)
 
-	h := handler.NewHandler(syncService, paymentService, tm, customerRepository, purchaseRepository, cryptoPayClient, yookasaClient, referralRepository, cache)
+	h := handler.NewHandler(syncService, paymentService, tm, customerRepository, purchaseRepository, cryptoPayClient, yookasaClient, referralRepository, cache, pricingService)
 
 	me, err := b.GetMe(ctx)
 	if err != nil {
@@ -165,6 +168,12 @@ func main() {
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackAdminToolsSync, bot.MatchTypeExact, h.AdminToolsSyncCallbackHandler, isAdminMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackAdminToolsStats, bot.MatchTypeExact, h.AdminToolsStatsCallbackHandler, isAdminMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackAdminToolsDownloadDB, bot.MatchTypeExact, h.AdminToolsDownloadDatabaseCallbackHandler, isAdminMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackAdminPricing, bot.MatchTypeExact, h.AdminPricingCallbackHandler, isAdminMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackAdminPricingDiscounts, bot.MatchTypeExact, h.AdminPricingDiscountsCallbackHandler, isAdminMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackAdminDiscountFlush, bot.MatchTypeExact, h.AdminDiscountFlushCallbackHandler, isAdminMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackAdminDiscountScopePrefix, bot.MatchTypePrefix, h.AdminDiscountScopeCallbackHandler, isAdminMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackAdminDiscountDurationPrefix, bot.MatchTypePrefix, h.AdminDiscountDurationCallbackHandler, isAdminMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackAdminDiscountPercentPrefix, bot.MatchTypePrefix, h.AdminDiscountPercentCallbackHandler, isAdminMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackSell, bot.MatchTypePrefix, h.SellCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackLanguageSelectPrefix, bot.MatchTypePrefix, h.LanguageSelectCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackDirect, bot.MatchTypePrefix, h.DirectPaymentCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)

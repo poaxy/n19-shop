@@ -522,7 +522,7 @@ func (s PaymentService) createStripeInvoice(ctx context.Context, amount float64,
 	if s.stripeClient == nil {
 		return "", 0, errors.New("stripe client not configured")
 	}
-	amountCents := config.StripePrice(months)
+	amountCents := int(amount)
 	purchaseId, err = s.purchaseRepository.Create(ctx, &database.Purchase{
 		InvoiceType: database.InvoiceTypeStripe,
 		Status:      database.PurchaseStatusNew,

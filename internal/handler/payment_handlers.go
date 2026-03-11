@@ -13,6 +13,7 @@ import (
 
 	"remnawave-tg-shop-bot/internal/config"
 	"remnawave-tg-shop-bot/internal/database"
+	"remnawave-tg-shop-bot/internal/pricing"
 )
 
 func planRank(plan string) int {
@@ -107,17 +108,16 @@ func (h Handler) PlanCallbackHandler(ctx context.Context, b *bot.Bot, update *mo
 
 	var priceButtons []models.InlineKeyboardButton
 
-	if config.Price1() > 0 {
+	// Currently we expose 1 and 12 month periods in the UI.
+	monthsOptions := []int{1, 12}
+	for _, months := range monthsOptions {
+		price := h.pricingService.GetEffectivePrice(tier, months, pricing.MethodDirect)
+		if price <= 0 {
+			continue
+		}
 		priceButtons = append(priceButtons, models.InlineKeyboardButton{
-			Text:         h.translation.GetText(langCode, "month_1"),
-			CallbackData: fmt.Sprintf("%s?plan=%s&month=%d&amount=%d", CallbackSell, tier, 1, config.Price1()),
-		})
-	}
-
-	if config.Price12() > 0 {
-		priceButtons = append(priceButtons, models.InlineKeyboardButton{
-			Text:         h.translation.GetText(langCode, "month_12"),
-			CallbackData: fmt.Sprintf("%s?plan=%s&month=%d&amount=%d", CallbackSell, tier, 12, config.Price12()),
+			Text:         h.translation.GetText(langCode, fmt.Sprintf("month_%d", months)),
+			CallbackData: fmt.Sprintf("%s?plan=%s&month=%d&amount=%d", CallbackSell, tier, months, price),
 		})
 	}
 
@@ -313,11 +313,11 @@ func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update 
 	var price int
 	switch invoiceType {
 	case database.InvoiceTypeTelegram:
-		price = config.StarsPrice(month)
+		price = h.pricingService.GetEffectivePrice(plan, month, pricing.MethodStars)
 	case database.InvoiceTypeStripe:
-		price = config.StripePrice(month)
+		price = h.pricingService.GetEffectivePrice(plan, month, pricing.MethodStripe)
 	default:
-		price = config.Price(month)
+		price = h.pricingService.GetEffectivePrice(plan, month, pricing.MethodDirect)
 	}
 
 	paymentCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)

@@ -146,6 +146,18 @@ The bot dynamically creates buttons based on available environment variables:
 - Additional buttons for Server Status, Support, Feedback, and Channel are only displayed if their corresponding URL
   environment variables are set
 
+### Admin: Discount & Pricing
+
+The admin can adjust prices at runtime without restarting the bot:
+
+- In the Admin panel → **Tools** → **Discount & Pricing** → **Discounts** you can:
+  - Choose **scope**: Global (Lite + Premium), Lite only, or Premium only; `Flush` removes all active discounts.
+  - Choose **duration**: 1 hour, 1 day, 1 week, or 1 month.
+  - Choose **percentage**: 10%–90%.
+- Discounts are applied to **all payment methods** (direct, Telegram Stars, Stripe) via an in‑memory pricing layer.
+- After the selected period expires, prices automatically return to the baseline values from `.env`.
+- On bot restart, all runtime discounts are cleared and prices are reloaded from `.env`.
+
 ## Automated Notifications
 
 The bot includes a notification system that runs daily at 16:00 UTC to check for expiring subscriptions:

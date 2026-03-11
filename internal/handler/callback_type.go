@@ -26,4 +26,10 @@ const (
 	CallbackAdminToolsDownloadDB = "admin_tools_download_db"
 	CallbackLanguage = "language"
 	CallbackLanguageSelectPrefix = "lang:"
+	CallbackAdminPricing = "admin_pricing"
+	CallbackAdminPricingDiscounts = "admin_pricing_discounts"
+	CallbackAdminDiscountScopePrefix = "admin_discount_scope"
+	CallbackAdminDiscountDurationPrefix = "admin_discount_duration"
+	CallbackAdminDiscountPercentPrefix = "admin_discount_percent"
+	CallbackAdminDiscountFlush = "admin_discount_flush"
 )
