@@ -81,10 +81,18 @@ The application requires the following environment variables to be set:
 | `IS_WEB_APP_LINK`        | If true, then sublink will be showed as webapp..                                                                                           |
 | `REMNAWAVE_HEADERS`      | Additional headers for remnawave requests (format: key1:value1;key2:value2). Example: X-Api-Key:your_key;X-Custom:value (optional)       |
 | `MINI_APP_URL`           | tg WEB APP URL. if empty not be used.                                                                                                      |
-| `STARS_PRICE_1`          | Price in Stars for 1 month                                                                                                                 
-| `STARS_PRICE_3`          | Price in Stars for 3 month                                                                                                                 
-| `STARS_PRICE_6`          | Price in Stars for 6 month                                                                                                                 
-| `STARS_PRICE_12`         | Price in Stars for 12 month                                                                                                                
+| `STARS_PRICE_1`          | Base price in Stars for 1 month (used when per-plan overrides are not set)                                                                 |
+| `STARS_PRICE_3`          | Base price in Stars for 3 months                                                                                                           |
+| `STARS_PRICE_6`          | Base price in Stars for 6 months                                                                                                           |
+| `STARS_PRICE_12`         | Base price in Stars for 12 months                                                                                                          |
+| `LITE_STARS_PRICE_1`     | Optional override for Lite plan, 1 month (Stars); falls back to `STARS_PRICE_1` if unset                                                  |
+| `LITE_STARS_PRICE_3`     | Optional override for Lite plan, 3 months (Stars); falls back to `STARS_PRICE_3` if unset                                                 |
+| `LITE_STARS_PRICE_6`     | Optional override for Lite plan, 6 months (Stars); falls back to `STARS_PRICE_6` if unset                                                 |
+| `LITE_STARS_PRICE_12`    | Optional override for Lite plan, 12 months (Stars); falls back to `STARS_PRICE_12` if unset                                               |
+| `PREMIUM_STARS_PRICE_1`  | Optional override for Premium plan, 1 month (Stars); falls back to `STARS_PRICE_1` if unset                                               |
+| `PREMIUM_STARS_PRICE_3`  | Optional override for Premium plan, 3 months (Stars); falls back to `STARS_PRICE_3` if unset                                              |
+| `PREMIUM_STARS_PRICE_6`  | Optional override for Premium plan, 6 months (Stars); falls back to `STARS_PRICE_6` if unset                                              |
+| `PREMIUM_STARS_PRICE_12` | Optional override for Premium plan, 12 months (Stars); falls back to `STARS_PRICE_12` if unset                                            |
 | `REFERRAL_DAYS`          | Refferal days. if 0, then disabled.                                                                                                        |
 | `TELEGRAM_TOKEN`         | Telegram Bot API token for bot functionality                                                                                               |
 | `DATABASE_URL`           | PostgreSQL connection string                                                                                                               |

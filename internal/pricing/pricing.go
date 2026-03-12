@@ -141,7 +141,7 @@ func (s *Service) GetEffectivePrice(tier string, months int, method Method) int 
 func baselinePrice(tier string, months int, method Method) int {
 	switch method {
 	case MethodStars:
-		return config.StarsPrice(months)
+		return starsPriceForTier(tier, months)
 	case MethodStripe:
 		return config.StripePrice(months)
 	default:
@@ -165,6 +165,39 @@ func directPriceForTier(tier string, months int) int {
 		prefix = "LITE_PRICE_"
 	case "premium":
 		prefix = "PREMIUM_PRICE_"
+	default:
+		return base
+	}
+
+	key := prefix + strconv.Itoa(months)
+	v := os.Getenv(key)
+	if v == "" {
+		return base
+	}
+
+	override, err := strconv.Atoi(v)
+	if err != nil {
+		return base
+	}
+	return override
+}
+
+// starsPriceForTier returns the Telegram Stars price for the given tier and duration.
+// By default it uses STARS_PRICE_* from config, but it can be overridden per tier via:
+//
+//   - LITE_STARS_PRICE_1, LITE_STARS_PRICE_3, LITE_STARS_PRICE_6, LITE_STARS_PRICE_12
+//   - PREMIUM_STARS_PRICE_1, PREMIUM_STARS_PRICE_3, PREMIUM_STARS_PRICE_6, PREMIUM_STARS_PRICE_12
+//
+// If an override is missing or invalid, it falls back to the shared STARS_PRICE_* value.
+func starsPriceForTier(tier string, months int) int {
+	base := config.StarsPrice(months)
+
+	var prefix string
+	switch tier {
+	case "lite":
+		prefix = "LITE_STARS_PRICE_"
+	case "premium":
+		prefix = "PREMIUM_STARS_PRICE_"
 	default:
 		return base
 	}

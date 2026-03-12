@@ -38,7 +38,6 @@ func (h Handler) AdminToolsCallbackHandler(ctx context.Context, b *bot.Bot, upda
 				{{Text: h.translation.GetText(langCode, "admin_tools_reset_diamonds_button"), CallbackData: CallbackAdminToolsResetDiamonds}},
 				{{Text: h.translation.GetText(langCode, "admin_tools_sync_button"), CallbackData: CallbackAdminToolsSync}},
 				{{Text: h.translation.GetText(langCode, "admin_tools_stats_button"), CallbackData: CallbackAdminToolsStats}},
-				{{Text: h.translation.GetText(langCode, "admin_tools_pricing_button"), CallbackData: CallbackAdminPricing}},
 				{{Text: h.translation.GetText(langCode, "admin_tools_download_db_button"), CallbackData: CallbackAdminToolsDownloadDB}},
 				{{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackStart}},
 			},
@@ -321,7 +320,7 @@ func (h Handler) AdminPricingCallbackHandler(ctx context.Context, b *bot.Bot, up
 		ReplyMarkup: models.InlineKeyboardMarkup{
 			InlineKeyboard: [][]models.InlineKeyboardButton{
 				{{Text: h.translation.GetText(langCode, "admin_pricing_discounts_button"), CallbackData: CallbackAdminPricingDiscounts}},
-				{{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackAdminTools}},
+				{{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackStart}},
 			},
 		},
 	})
