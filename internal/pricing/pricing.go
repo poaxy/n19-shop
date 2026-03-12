@@ -1,6 +1,8 @@
 package pricing
 
 import (
+	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -117,11 +119,11 @@ func (s *Service) ActiveDiscounts() []Discount {
 // and payment method, with the best applicable active discount applied.
 //
 // The returned value is:
-//   - RUB units for MethodDirect (config.Price)
-//   - Stars units for MethodStars (config.StarsPrice)
-//   - USD cents for MethodStripe (config.StripePrice)
+//   - RUB units for MethodDirect (PRICE_* / overrides)
+//   - Stars units for MethodStars (STARS_PRICE_*)
+//   - USD cents for MethodStripe (STRIPE_PRICE_*)
 func (s *Service) GetEffectivePrice(tier string, months int, method Method) int {
-	baseline := baselinePrice(months, method)
+	baseline := baselinePrice(tier, months, method)
 	if baseline <= 0 {
 		return baseline
 	}
@@ -135,16 +137,55 @@ func (s *Service) GetEffectivePrice(tier string, months int, method Method) int 
 	return (baseline * (100 - percent)) / 100
 }
 
-// baselinePrice reads the baseline price for the given duration and method from config.
-func baselinePrice(months int, method Method) int {
+// baselinePrice reads the baseline price for the given tier, duration and method.
+func baselinePrice(tier string, months int, method Method) int {
 	switch method {
 	case MethodStars:
 		return config.StarsPrice(months)
 	case MethodStripe:
 		return config.StripePrice(months)
 	default:
-		return config.Price(months)
+		return directPriceForTier(tier, months)
 	}
+}
+
+// directPriceForTier returns the direct (RUB) price for the given tier and duration.
+// By default it uses PRICE_* from config, but it can be overridden per tier via:
+//
+//   - LITE_PRICE_1, LITE_PRICE_3, LITE_PRICE_6, LITE_PRICE_12
+//   - PREMIUM_PRICE_1, PREMIUM_PRICE_3, PREMIUM_PRICE_6, PREMIUM_PRICE_12
+//
+// If an override is missing or invalid, it falls back to the shared PRICE_* value.
+func directPriceForTier(tier string, months int) int {
+	base := config.Price(months)
+
+	var prefix string
+	switch tier {
+	case "lite":
+		prefix = "LITE_PRICE_"
+	case "premium":
+		prefix = "PREMIUM_PRICE_"
+	default:
+		return base
+	}
+
+	key := prefix + strconv.Itoa(months)
+	v := os.Getenv(key)
+	if v == "" {
+		return base
+	}
+
+	override, err := strconv.Atoi(v)
+	if err != nil {
+		return base
+	}
+	return override
+}
+
+// BaselinePriceForPreview is a helper used by admin UI to show the
+// before/after prices in summaries, without applying any discounts.
+func BaselinePriceForPreview(tier string, months int, method Method) int {
+	return baselinePrice(tier, months, method)
 }
 
 // effectiveDiscountPercent returns the highest active discount percentage applicable

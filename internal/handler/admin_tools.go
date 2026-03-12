@@ -597,15 +597,7 @@ func (h Handler) AdminDiscountPercentCallbackHandler(ctx context.Context, b *bot
 			continue
 		}
 
-		var baseline int
-		switch c.method {
-		case pricing.MethodStars:
-			baseline = config.StarsPrice(c.months)
-		case pricing.MethodStripe:
-			baseline = config.StripePrice(c.months)
-		default:
-			baseline = config.Price(c.months)
-		}
+		baseline := pricing.BaselinePriceForPreview(c.tier, c.months, c.method)
 
 		if baseline <= 0 {
 			continue

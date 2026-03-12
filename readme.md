@@ -61,10 +61,18 @@ The application requires the following environment variables to be set:
 
 | Variable                 | Description                                                                                                                                |
 |--------------------------|--------------------------------------------------------------------------------------------------------------------------------------------| 
-| `PRICE_1`                | Price for 1 month                                                                                                                          |
-| `PRICE_3`                | Price for 3 month                                                                                                                          |
-| `PRICE_6`                | Price for 6 month                                                                                                                          |
-| `PRICE_12`               | Price for 12 month                                                                                                                         |
+| `PRICE_1`                | Base price for 1 month (used when per-plan overrides are not set)                                                                         |
+| `PRICE_3`                | Base price for 3 months                                                                                                                    |
+| `PRICE_6`                | Base price for 6 months                                                                                                                    |
+| `PRICE_12`               | Base price for 12 months                                                                                                                   |
+| `LITE_PRICE_1`           | Optional override for Lite plan, 1 month (RUB); falls back to `PRICE_1` if unset                                                          |
+| `LITE_PRICE_3`           | Optional override for Lite plan, 3 months (RUB); falls back to `PRICE_3` if unset                                                         |
+| `LITE_PRICE_6`           | Optional override for Lite plan, 6 months (RUB); falls back to `PRICE_6` if unset                                                         |
+| `LITE_PRICE_12`          | Optional override for Lite plan, 12 months (RUB); falls back to `PRICE_12` if unset                                                       |
+| `PREMIUM_PRICE_1`        | Optional override for Premium plan, 1 month (RUB); falls back to `PRICE_1` if unset                                                       |
+| `PREMIUM_PRICE_3`        | Optional override for Premium plan, 3 months (RUB); falls back to `PRICE_3` if unset                                                      |
+| `PREMIUM_PRICE_6`        | Optional override for Premium plan, 6 months (RUB); falls back to `PRICE_6` if unset                                                      |
+| `PREMIUM_PRICE_12`       | Optional override for Premium plan, 12 months (RUB); falls back to `PRICE_12` if unset                                                    |
 | `DAYS_IN_MONTH`          | Days in month                                                                                                                              |
 | `DEFAULT_LANGUAGE`       | Default language for bot messages (en or ru). Default: ru                                                                                   |
 | `REMNAWAVE_TAG`          | Tag in remnawave                                                                                                                           |
