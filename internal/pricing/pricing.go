@@ -143,7 +143,10 @@ func baselinePrice(tier string, months int, method Method) int {
 	case MethodStars:
 		return starsPriceForTier(tier, months)
 	case MethodStripe:
-		return config.StripePrice(months)
+		// Stripe should mirror the same base pricing as direct payments.
+		// We reuse the direct per-plan price here so configuring direct pricing
+		// automatically affects Stripe as well (before discounts).
+		return directPriceForTier(tier, months)
 	default:
 		return directPriceForTier(tier, months)
 	}

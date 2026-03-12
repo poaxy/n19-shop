@@ -119,10 +119,10 @@ The application requires the following environment variables to be set:
 | `STRIPE_WEBHOOK_PATH`     | HTTP path for the Stripe webhook (e.g. /stripe/webhook). Default: /stripe/webhook                                                          |
 | `STRIPE_SUCCESS_URL`      | URL to redirect customers after successful payment (HTTPS)                                                                                 |
 | `STRIPE_CANCEL_URL`       | URL to redirect customers if they cancel payment (HTTPS)                                                                                   |
-| `STRIPE_PRICE_1`          | Price in USD cents for 1 month (e.g. 999 = $9.99)                                                                                           |
-| `STRIPE_PRICE_3`          | Price in USD cents for 3 months                                                                                                            |
-| `STRIPE_PRICE_6`          | Price in USD cents for 6 months                                                                                                             |
-| `STRIPE_PRICE_12`         | Price in USD cents for 12 months                                                                                                            |
+| `STRIPE_PRICE_1`          | (Legacy) Stripe base price in cents for 1 month. When using unified pricing, Stripe reuses direct plan prices instead.                     |
+| `STRIPE_PRICE_3`          | (Legacy) Stripe base price in cents for 3 months.                                                                                          |
+| `STRIPE_PRICE_6`          | (Legacy) Stripe base price in cents for 6 months.                                                                                          |
+| `STRIPE_PRICE_12`         | (Legacy) Stripe base price in cents for 12 months.                                                                                         |
 | `SERVER_STATUS_URL`      | URL to server status page (optional) - if not set, button will not be displayed                                                            |
 | `SUPPORT_URL`            | URL to support chat or page (optional) - if not set, button will not be displayed                                                          |
 | `FEEDBACK_URL`           | URL to feedback/reviews page (optional) - if not set, button will not be displayed                                                         |
