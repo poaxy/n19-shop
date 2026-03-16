@@ -388,6 +388,37 @@ func (s PaymentService) AdminSetSubscription(ctx context.Context, telegramId int
 	return updatedCustomer, nil
 }
 
+// AdminRemoveSubscription allows an admin to immediately revoke a customer's subscription.
+// It updates the Remnawave user to have zero traffic limit and marks the customer as free-tier
+// with an already expired subscription in the local database.
+func (s PaymentService) AdminRemoveSubscription(ctx context.Context, telegramId int64) (*database.Customer, error) {
+	customer, err := s.customerRepository.FindByTelegramId(ctx, telegramId)
+	if err != nil {
+		return nil, err
+	}
+	if customer == nil {
+		return nil, ErrCustomerNotFound
+	}
+
+	// Set traffic limit to 0 and do not extend expiry on the Remnawave side.
+	_, err = s.remnawaveClient.CreateOrUpdateUser(ctx, customer.ID, customer.TelegramID, 0, 0, false)
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now().UTC()
+	updates := map[string]interface{}{
+		"plan":      "free",
+		"expire_at": now,
+	}
+
+	if err := s.customerRepository.UpdateFields(ctx, customer.ID, updates); err != nil {
+		return nil, err
+	}
+
+	return s.customerRepository.FindById(ctx, customer.ID)
+}
+
 func (s PaymentService) notifyPlanChange(ctx context.Context, customer *database.Customer, oldPlan string, oldExpireAt *time.Time, newPlan string, newExpireAt time.Time) error {
 	oldRank := planRank(oldPlan)
 	newRank := planRank(newPlan)

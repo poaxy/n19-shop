@@ -428,18 +428,18 @@ func (h Handler) AdminSubscriptionActionCallbackHandler(ctx context.Context, b *
 	}
 
 	if action == "remove" {
-		now := time.Now().UTC()
-		updates := map[string]interface{}{
-			"plan":      "free",
-			"expire_at": now,
-		}
-		if err := h.customerRepository.UpdateFields(ctx, targetCustomer.ID, updates); err != nil {
-			slog.Error("error removing subscription", "error", err)
+		if _, err := h.paymentService.AdminRemoveSubscription(ctx, targetID); err != nil {
+			slog.Error("error removing subscription via admin", "error", err)
 			_, _ = b.EditMessageText(ctx, &bot.EditMessageTextParams{
 				ChatID:    callbackMessage.Chat.ID,
 				MessageID: callbackMessage.ID,
 				Text:      h.translation.GetText(langCode, "admin_subscription_update_error"),
 				ParseMode: models.ParseModeHTML,
+				ReplyMarkup: models.InlineKeyboardMarkup{
+					InlineKeyboard: [][]models.InlineKeyboardButton{
+						{{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackAdminPricing}},
+					},
+				},
 			})
 			return
 		}
