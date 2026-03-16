@@ -212,6 +212,88 @@ func (h Handler) AdminMessageHandler(ctx context.Context, b *bot.Bot, update *mo
 			Text:      h.translation.GetText(langCode, "admin_notify_direct_done"),
 		})
 		slog.Info("admin direct message sent", "targetId", utils.MaskHalfInt64(targetID))
+
+	case admin.StateAwaitingSubscriptionTargetID:
+		targetID, err := utils.ParseInt64(msg.Text)
+		if err != nil {
+			_, _ = b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:    msg.Chat.ID,
+				ParseMode: models.ParseModeHTML,
+				Text:      h.translation.GetText(langCode, "admin_subscription_invalid_id"),
+			})
+			return
+		}
+
+		targetCustomer, err := h.customerRepository.FindByTelegramId(ctx, targetID)
+		if err != nil || targetCustomer == nil {
+			_, _ = b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:    msg.Chat.ID,
+				ParseMode: models.ParseModeHTML,
+				Text:      h.translation.GetText(langCode, "admin_subscription_not_found"),
+			})
+			return
+		}
+
+		h.adminState.SetSubscriptionTargetTelegram(targetID)
+
+		now := time.Now().UTC()
+		activePlan := getActivePlan(targetCustomer, now)
+
+		planLabel := h.translation.GetText(langCode, "profile_plan_none")
+		switch activePlan {
+		case "free":
+			planLabel = h.translation.GetText(langCode, "profile_plan_free")
+		case "lite":
+			planLabel = h.translation.GetText(langCode, "plan_lite_button")
+		case "premium":
+			planLabel = h.translation.GetText(langCode, "plan_premium_button")
+		}
+
+		expireAtStr := h.translation.GetText(langCode, "profile_no_subscription")
+		if targetCustomer.ExpireAt != nil {
+			expireAtStr = targetCustomer.ExpireAt.Format("02.01.2006 15:04")
+		}
+
+		summary := fmt.Sprintf(
+			h.translation.GetText(langCode, "admin_subscription_summary"),
+			targetCustomer.TelegramID,
+			planLabel,
+			expireAtStr,
+		)
+
+		var actionRow []models.InlineKeyboardButton
+		if activePlan == "lite" || activePlan == "premium" || activePlan == "free" {
+			actionRow = append(actionRow, models.InlineKeyboardButton{
+				Text:         h.translation.GetText(langCode, "admin_subscription_remove_button"),
+				CallbackData: fmt.Sprintf("%s?action=remove&id=%d", CallbackAdminSubscriptionActionPrefix, targetCustomer.TelegramID),
+			})
+		}
+
+		actionRow = append(actionRow,
+			models.InlineKeyboardButton{
+				Text:         h.translation.GetText(langCode, "admin_subscription_assign_lite_button"),
+				CallbackData: fmt.Sprintf("%s?action=lite&id=%d", CallbackAdminSubscriptionActionPrefix, targetCustomer.TelegramID),
+			},
+			models.InlineKeyboardButton{
+				Text:         h.translation.GetText(langCode, "admin_subscription_assign_premium_button"),
+				CallbackData: fmt.Sprintf("%s?action=premium&id=%d", CallbackAdminSubscriptionActionPrefix, targetCustomer.TelegramID),
+			},
+		)
+
+		_, _ = b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    msg.Chat.ID,
+			ParseMode: models.ParseModeHTML,
+			Text:      summary,
+			ReplyMarkup: models.InlineKeyboardMarkup{
+				InlineKeyboard: [][]models.InlineKeyboardButton{
+					actionRow,
+					{
+						{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackAdminPricing},
+					},
+				},
+			},
+		})
+		h.adminState.SetState(admin.StateIdle)
 	}
 }
 

@@ -13,7 +13,9 @@ import (
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 
+	"remnawave-tg-shop-bot/internal/admin"
 	"remnawave-tg-shop-bot/internal/config"
+	"remnawave-tg-shop-bot/internal/database"
 	"remnawave-tg-shop-bot/internal/pricing"
 	"remnawave-tg-shop-bot/internal/translation"
 )
@@ -320,6 +322,7 @@ func (h Handler) AdminPricingCallbackHandler(ctx context.Context, b *bot.Bot, up
 		ReplyMarkup: models.InlineKeyboardMarkup{
 			InlineKeyboard: [][]models.InlineKeyboardButton{
 				{{Text: h.translation.GetText(langCode, "admin_pricing_discounts_button"), CallbackData: CallbackAdminPricingDiscounts}},
+				{{Text: h.translation.GetText(langCode, "admin_pricing_subscription_manage_button"), CallbackData: CallbackAdminSubscriptionManage}},
 				{{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackStart}},
 			},
 		},
@@ -357,6 +360,225 @@ func (h Handler) AdminPricingDiscountsCallbackHandler(ctx context.Context, b *bo
 	if err != nil {
 		slog.Error("error showing discounts scope menu", "error", err)
 	}
+}
+
+func (h Handler) AdminSubscriptionManageCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	cb := update.CallbackQuery
+	if cb.From.ID != config.GetAdminTelegramId() {
+		return
+	}
+
+	h.adminState.SetState(admin.StateAwaitingSubscriptionTargetID)
+
+	customer, _ := h.customerRepository.FindByTelegramId(ctx, cb.From.ID)
+	langCode := h.getUserLanguage(customer, &cb.From)
+	callbackMessage := cb.Message.Message
+
+	_, err := b.EditMessageText(ctx, &bot.EditMessageTextParams{
+		ChatID:    callbackMessage.Chat.ID,
+		MessageID: callbackMessage.ID,
+		Text:      h.translation.GetText(langCode, "admin_subscription_enter_telegram_id"),
+		ParseMode: models.ParseModeHTML,
+		ReplyMarkup: models.InlineKeyboardMarkup{
+			InlineKeyboard: [][]models.InlineKeyboardButton{
+				{{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackAdminPricing}},
+			},
+		},
+	})
+	if err != nil {
+		slog.Error("error showing subscription management prompt", "error", err)
+	}
+}
+
+func (h Handler) AdminSubscriptionActionCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	cb := update.CallbackQuery
+	if cb.From.ID != config.GetAdminTelegramId() {
+		return
+	}
+
+	customer, _ := h.customerRepository.FindByTelegramId(ctx, cb.From.ID)
+	langCode := h.getUserLanguage(customer, &cb.From)
+	callbackMessage := cb.Message.Message
+
+	params := parseCallbackData(cb.Data)
+	action := params["action"]
+	idStr := params["id"]
+	if action == "" || idStr == "" {
+		return
+	}
+
+	targetID, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		return
+	}
+
+	targetCustomer, err := h.customerRepository.FindByTelegramId(ctx, targetID)
+	if err != nil || targetCustomer == nil {
+		_, _ = b.EditMessageText(ctx, &bot.EditMessageTextParams{
+			ChatID:    callbackMessage.Chat.ID,
+			MessageID: callbackMessage.ID,
+			Text:      h.translation.GetText(langCode, "admin_subscription_not_found"),
+			ParseMode: models.ParseModeHTML,
+			ReplyMarkup: models.InlineKeyboardMarkup{
+				InlineKeyboard: [][]models.InlineKeyboardButton{
+					{{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackAdminPricing}},
+				},
+			},
+		})
+		return
+	}
+
+	if action == "remove" {
+		now := time.Now().UTC()
+		updates := map[string]interface{}{
+			"plan":      "free",
+			"expire_at": now,
+		}
+		if err := h.customerRepository.UpdateFields(ctx, targetCustomer.ID, updates); err != nil {
+			slog.Error("error removing subscription", "error", err)
+			_, _ = b.EditMessageText(ctx, &bot.EditMessageTextParams{
+				ChatID:    callbackMessage.Chat.ID,
+				MessageID: callbackMessage.ID,
+				Text:      h.translation.GetText(langCode, "admin_subscription_update_error"),
+				ParseMode: models.ParseModeHTML,
+			})
+			return
+		}
+
+		_, _ = b.EditMessageText(ctx, &bot.EditMessageTextParams{
+			ChatID:    callbackMessage.Chat.ID,
+			MessageID: callbackMessage.ID,
+			Text:      h.translation.GetText(langCode, "admin_subscription_removed"),
+			ParseMode: models.ParseModeHTML,
+			ReplyMarkup: models.InlineKeyboardMarkup{
+				InlineKeyboard: [][]models.InlineKeyboardButton{
+					{{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackAdminPricing}},
+				},
+			},
+		})
+		return
+	}
+
+	// Assign or change plan, ask for duration.
+	var plan string
+	switch action {
+	case "lite":
+		plan = "lite"
+	case "premium":
+		plan = "premium"
+	default:
+		return
+	}
+
+	_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{
+		ChatID:    callbackMessage.Chat.ID,
+		MessageID: callbackMessage.ID,
+		Text:      h.translation.GetText(langCode, "admin_subscription_choose_duration"),
+		ParseMode: models.ParseModeHTML,
+		ReplyMarkup: models.InlineKeyboardMarkup{
+			InlineKeyboard: [][]models.InlineKeyboardButton{
+				{
+					{
+						Text:         h.translation.GetText(langCode, "month_1"),
+						CallbackData: fmt.Sprintf("%s?id=%d&plan=%s&months=%d", CallbackAdminSubscriptionDurationPrefix, targetCustomer.TelegramID, plan, 1),
+					},
+					{
+						Text:         h.translation.GetText(langCode, "month_12"),
+						CallbackData: fmt.Sprintf("%s?id=%d&plan=%s&months=%d", CallbackAdminSubscriptionDurationPrefix, targetCustomer.TelegramID, plan, 12),
+					},
+				},
+				{
+					{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackAdminPricing},
+				},
+			},
+		},
+	})
+	if err != nil {
+		slog.Error("error showing subscription duration menu", "error", err)
+	}
+}
+
+func (h Handler) AdminSubscriptionDurationCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	cb := update.CallbackQuery
+	if cb.From.ID != config.GetAdminTelegramId() {
+		return
+	}
+
+	customer, _ := h.customerRepository.FindByTelegramId(ctx, cb.From.ID)
+	langCode := h.getUserLanguage(customer, &cb.From)
+	callbackMessage := cb.Message.Message
+
+	params := parseCallbackData(cb.Data)
+	idStr := params["id"]
+	plan := params["plan"]
+	monthsStr := params["months"]
+	if idStr == "" || plan == "" || monthsStr == "" {
+		return
+	}
+
+	targetID, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		return
+	}
+	months, err := strconv.Atoi(monthsStr)
+	if err != nil || (months != 1 && months != 12) {
+		return
+	}
+
+	targetCustomer, err := h.customerRepository.FindByTelegramId(ctx, targetID)
+	if err != nil || targetCustomer == nil {
+		_, _ = b.EditMessageText(ctx, &bot.EditMessageTextParams{
+			ChatID:    callbackMessage.Chat.ID,
+			MessageID: callbackMessage.ID,
+			Text:      h.translation.GetText(langCode, "admin_subscription_not_found"),
+			ParseMode: models.ParseModeHTML,
+			ReplyMarkup: models.InlineKeyboardMarkup{
+				InlineKeyboard: [][]models.InlineKeyboardButton{
+					{{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackAdminPricing}},
+				},
+			},
+		})
+		return
+	}
+
+	now := time.Now().UTC()
+	days := config.DaysInMonth() * months
+	expireAt := now.Add(time.Duration(days) * 24 * time.Hour)
+
+	updates := map[string]interface{}{
+		"plan":      plan,
+		"expire_at": expireAt,
+	}
+
+	if err := h.customerRepository.UpdateFields(ctx, targetCustomer.ID, updates); err != nil {
+		slog.Error("error updating subscription", "error", err)
+		_, _ = b.EditMessageText(ctx, &bot.EditMessageTextParams{
+			ChatID:    callbackMessage.Chat.ID,
+			MessageID: callbackMessage.ID,
+			Text:      h.translation.GetText(langCode, "admin_subscription_update_error"),
+			ParseMode: models.ParseModeHTML,
+		})
+		return
+	}
+
+	summary := fmt.Sprintf(
+		h.translation.GetText(langCode, "admin_subscription_updated"),
+		targetCustomer.TelegramID,
+		plan,
+		expireAt.Format("02.01.2006 15:04"),
+	)
+
+	_, _ = b.EditMessageText(ctx, &bot.EditMessageTextParams{
+		ChatID:    callbackMessage.Chat.ID,
+		MessageID: callbackMessage.ID,
+		Text:      summary,
+		ParseMode: models.ParseModeHTML,
+		ReplyMarkup: models.InlineKeyboardMarkup{
+			InlineKeyboard: [][]models.InlineKeyboardButton{
+				{{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackAdminPricing}},
+			},
+		},
+	})
 }
 
 func (h Handler) AdminDiscountFlushCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
