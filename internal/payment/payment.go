@@ -17,6 +17,7 @@ import (
 	"remnawave-tg-shop-bot/utils"
 	"time"
 
+	remapi "github.com/Jolymmiles/remnawave-api-go/v2/api"
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 )
@@ -111,26 +112,43 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 
 	previousLinkWasEmpty := customer.SubscriptionLink == nil || (customer.SubscriptionLink != nil && *customer.SubscriptionLink == "")
 
-	user, err := s.remnawaveClient.CreateOrUpdateUser(ctx, customer.ID, customer.TelegramID, config.TrafficLimit(), purchase.Month*config.DaysInMonth(), false)
-	if err != nil {
-		return err
-	}
-
-	slog.Info("remnawave user updated for purchase",
-		"customer_id", utils.MaskHalfInt64(customer.ID),
-		"telegram_id", utils.MaskHalfInt64(customer.TelegramID),
-		"months", purchase.Month,
-	)
-
-	err = s.purchaseRepository.MarkAsPaid(ctx, purchase.ID)
-	if err != nil {
-		return err
-	}
-
 	// Determine plan from context (default to lite)
 	plan, _ := ctx.Value("plan").(string)
 	if plan == "" {
 		plan = "lite"
+	}
+
+	days := purchase.Month * config.DaysInMonth()
+	ctxWithPlan := context.WithValue(ctx, "plan", plan)
+
+	var user *remapi.User
+
+	// If this is an upgrade to premium, reset expiry instead of stacking remaining time.
+	if oldPlan != "premium" && plan == "premium" {
+		user, err = s.remnawaveClient.SetUserSubscriptionExactByTelegramId(ctxWithPlan, customer.TelegramID, config.TrafficLimit(), days)
+		if err != nil {
+			return err
+		}
+		slog.Info("remnawave user upgraded to premium with exact window",
+			"customer_id", utils.MaskHalfInt64(customer.ID),
+			"telegram_id", utils.MaskHalfInt64(customer.TelegramID),
+			"months", purchase.Month,
+		)
+	} else {
+		user, err = s.remnawaveClient.CreateOrUpdateUser(ctxWithPlan, customer.ID, customer.TelegramID, config.TrafficLimit(), days, false)
+		if err != nil {
+			return err
+		}
+		slog.Info("remnawave user updated for purchase",
+			"customer_id", utils.MaskHalfInt64(customer.ID),
+			"telegram_id", utils.MaskHalfInt64(customer.TelegramID),
+			"months", purchase.Month,
+		)
+	}
+
+	err = s.purchaseRepository.MarkAsPaid(ctx, purchase.ID)
+	if err != nil {
+		return err
 	}
 
 	customerFilesToUpdate := map[string]interface{}{
@@ -345,9 +363,19 @@ func (s PaymentService) AdminSetSubscription(ctx context.Context, telegramId int
 
 	ctxWithPlan := context.WithValue(ctx, "plan", plan)
 
-	user, err := s.remnawaveClient.CreateOrUpdateUser(ctxWithPlan, customer.ID, customer.TelegramID, config.TrafficLimit(), days, false)
-	if err != nil {
-		return nil, err
+	var user *remapi.User
+
+	// For admin upgrades to premium, also reset the window exactly.
+	if oldPlan != "premium" && plan == "premium" {
+		user, err = s.remnawaveClient.SetUserSubscriptionExactByTelegramId(ctxWithPlan, customer.TelegramID, config.TrafficLimit(), days)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		user, err = s.remnawaveClient.CreateOrUpdateUser(ctxWithPlan, customer.ID, customer.TelegramID, config.TrafficLimit(), days, false)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	customerFieldsToUpdate := map[string]interface{}{

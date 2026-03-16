@@ -285,6 +285,91 @@ func (r *Client) updateUser(ctx context.Context, existingUser *remapi.User, traf
 	return &updateUser.(*remapi.UserResponse).Response, nil
 }
 
+// SetUserSubscriptionExactByTelegramId sets a user's subscription to an exact window
+// (now + days) instead of extending their existing expiry. This is used for plan
+// upgrades where we don't want to stack remaining lower-tier time.
+func (r *Client) SetUserSubscriptionExactByTelegramId(ctx context.Context, telegramId int64, trafficLimit int, days int) (*remapi.User, error) {
+	resp, err := r.client.Users().GetUserByTelegramId(ctx, strconv.FormatInt(telegramId, 10))
+	if err != nil {
+		return nil, err
+	}
+
+	usersResp, ok := resp.(*remapi.UsersResponse)
+	if !ok {
+		return nil, errors.New("unknown response type")
+	}
+
+	users := usersResp.GetResponse()
+	if len(users) == 0 {
+		// If user does not exist yet, create a fresh one with the given window.
+		return r.createUser(ctx, 0, telegramId, trafficLimit, days, false)
+	}
+
+	var existingUser *remapi.User
+	suffix := fmt.Sprintf("_%d", telegramId)
+
+	for i := range users {
+		if strings.Contains(users[i].Username, suffix) {
+			existingUser = &users[i]
+			break
+		}
+	}
+
+	if existingUser == nil {
+		existingUser = &users[0]
+	}
+
+	newExpire := time.Now().UTC().AddDate(0, 0, days)
+
+	respSquads, err := r.client.InternalSquad().GetInternalSquads(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	raw := respSquads.(*remapi.InternalSquadsResponse)
+
+	squadId := selectInternalSquads(ctx, raw, false)
+
+	userUpdate := &remapi.UpdateUserRequestDto{
+		UUID:                 remapi.NewOptUUID(existingUser.UUID),
+		ExpireAt:             remapi.NewOptDateTime(newExpire),
+		Status:               remapi.NewOptUpdateUserRequestDtoStatus(remapi.UpdateUserRequestDtoStatusACTIVE),
+		TrafficLimitBytes:    remapi.NewOptInt(trafficLimit),
+		ActiveInternalSquads: squadId,
+		TrafficLimitStrategy: remapi.NewOptUpdateUserRequestDtoTrafficLimitStrategy(getUpdateStrategy(config.TrafficLimitResetStrategy())),
+	}
+
+	externalSquad := config.ExternalSquadUUID()
+	if externalSquad != uuid.Nil {
+		userUpdate.ExternalSquadUuid = remapi.NewOptNilUUID(externalSquad)
+	}
+
+	tag := config.RemnawaveTag()
+	if tag != "" {
+		userUpdate.Tag = remapi.NewOptNilString(tag)
+	}
+
+	var username string
+	if ctx.Value("username") != nil {
+		username = ctx.Value("username").(string)
+		userUpdate.Description = remapi.NewOptNilString(username)
+	} else {
+		username = ""
+	}
+
+	updateUser, err := r.client.Users().UpdateUser(ctx, userUpdate)
+	if err != nil {
+		return nil, err
+	}
+	if value, ok := updateUser.(*remapi.InternalServerError); ok {
+		return nil, errors.New("error while updating user. message: " + value.GetMessage().Value + ". code: " + value.GetErrorCode().Value)
+	}
+
+	tgid, _ := existingUser.TelegramId.Get()
+	slog.Info("set user subscription exact", "telegramId", utils.MaskHalf(strconv.Itoa(tgid)), "username", utils.MaskHalf(username), "days", days)
+	return &updateUser.(*remapi.UserResponse).Response, nil
+}
+
 func (r *Client) createUser(ctx context.Context, customerId int64, telegramId int64, trafficLimit int, days int, isTrialUser bool) (*remapi.User, error) {
 	expireAt := time.Now().UTC().AddDate(0, 0, days)
 	username := generateUsername(customerId, telegramId)
