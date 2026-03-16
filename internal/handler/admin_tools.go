@@ -15,7 +15,6 @@ import (
 
 	"remnawave-tg-shop-bot/internal/admin"
 	"remnawave-tg-shop-bot/internal/config"
-	"remnawave-tg-shop-bot/internal/database"
 	"remnawave-tg-shop-bot/internal/pricing"
 	"remnawave-tg-shop-bot/internal/translation"
 )
