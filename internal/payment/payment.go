@@ -400,9 +400,8 @@ func (s PaymentService) AdminRemoveSubscription(ctx context.Context, telegramId 
 		return nil, ErrCustomerNotFound
 	}
 
-	// Set traffic limit to 0 and do not extend expiry on the Remnawave side.
-	_, err = s.remnawaveClient.CreateOrUpdateUser(ctx, customer.ID, customer.TelegramID, 0, 0, false)
-	if err != nil {
+	// Revoke subscription in Remnawave so existing configs/links stop working.
+	if err := s.remnawaveClient.RevokeUserSubscriptionByTelegramId(ctx, customer.TelegramID); err != nil {
 		return nil, err
 	}
 

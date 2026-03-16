@@ -129,6 +129,48 @@ func (r *Client) DecreaseSubscription(ctx context.Context, telegramId int64, tra
 	return &updated.ExpireAt, nil
 }
 
+// RevokeUserSubscriptionByTelegramId revokes a user's subscription in Remnawave panel
+// based on their Telegram ID. It does not delete the user record but removes their
+// active subscription so existing configs stop working according to panel rules.
+func (r *Client) RevokeUserSubscriptionByTelegramId(ctx context.Context, telegramId int64) error {
+	resp, err := r.client.Users().GetUserByTelegramId(ctx, strconv.FormatInt(telegramId, 10))
+	if err != nil {
+		return err
+	}
+
+	usersResp, ok := resp.(*remapi.UsersResponse)
+	if !ok {
+		return errors.New("unknown response type")
+	}
+
+	users := usersResp.GetResponse()
+	if len(users) == 0 {
+		return fmt.Errorf("user with telegramId %d not found", telegramId)
+	}
+
+	var existingUser *remapi.User
+	suffix := fmt.Sprintf("_%d", telegramId)
+
+	for i := range users {
+		if strings.Contains(users[i].Username, suffix) {
+			existingUser = &users[i]
+			break
+		}
+	}
+
+	if existingUser == nil {
+		existingUser = &users[0]
+	}
+
+	_, err = r.client.Users().RevokeUserSubscription(ctx, &remapi.RevokeUserSubscriptionBody{}, existingUser.UUID.String())
+	if err != nil {
+		return err
+	}
+
+	slog.Info("revoked user subscription", "telegramId", utils.MaskHalf(strconv.FormatInt(telegramId, 10)))
+	return nil
+}
+
 func (r *Client) CreateOrUpdateUser(ctx context.Context, customerId int64, telegramId int64, trafficLimit int, days int, isTrialUser bool) (*remapi.User, error) {
 	resp, err := r.client.Users().GetUserByTelegramId(ctx, strconv.FormatInt(telegramId, 10))
 	if err != nil {
