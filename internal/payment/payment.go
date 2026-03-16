@@ -317,6 +317,77 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 	return nil
 }
 
+// AdminSetSubscription allows an admin to directly set a customer's plan and duration
+// without creating a purchase. It updates the Remnawave user and keeps subscription
+// link / expiry in sync with the VPN backend, then updates the customer record.
+func (s PaymentService) AdminSetSubscription(ctx context.Context, telegramId int64, plan string, months int) (*database.Customer, error) {
+	if months <= 0 {
+		return nil, fmt.Errorf("invalid months value: %d", months)
+	}
+	if plan == "" {
+		plan = "lite"
+	}
+
+	customer, err := s.customerRepository.FindByTelegramId(ctx, telegramId)
+	if err != nil {
+		return nil, err
+	}
+	if customer == nil {
+		return nil, ErrCustomerNotFound
+	}
+
+	oldPlan := customer.Plan
+	oldExpireAt := customer.ExpireAt
+
+	previousLinkWasEmpty := customer.SubscriptionLink == nil || (customer.SubscriptionLink != nil && *customer.SubscriptionLink == "")
+
+	days := months * config.DaysInMonth()
+
+	ctxWithPlan := context.WithValue(ctx, "plan", plan)
+
+	user, err := s.remnawaveClient.CreateOrUpdateUser(ctxWithPlan, customer.ID, customer.TelegramID, config.TrafficLimit(), days, false)
+	if err != nil {
+		return nil, err
+	}
+
+	customerFieldsToUpdate := map[string]interface{}{
+		"subscription_link": user.SubscriptionUrl,
+		"expire_at":         user.ExpireAt,
+		"plan":              plan,
+	}
+
+	if err := s.customerRepository.UpdateFields(ctx, customer.ID, customerFieldsToUpdate); err != nil {
+		return nil, err
+	}
+
+	// Refresh customer to return up-to-date data.
+	updatedCustomer, err := s.customerRepository.FindById(ctx, customer.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Plan change notification (upgrade/renewal)
+	if !user.ExpireAt.IsZero() {
+		if notifyErr := s.notifyPlanChange(ctx, customer, oldPlan, oldExpireAt, plan, user.ExpireAt); notifyErr != nil {
+			slog.Error("error sending plan change notification (admin)", "error", notifyErr, "customer_id", utils.MaskHalfInt64(customer.ID))
+		}
+	}
+
+	// If this is the first time the user receives a subscription link, send them a one-time info message.
+	if previousLinkWasEmpty && user.SubscriptionUrl != "" {
+		_, sendErr := s.telegramBot.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    customer.TelegramID,
+			ParseMode: models.ParseModeHTML,
+			Text:      s.translation.GetText(customer.Language, "unique_link_info"),
+		})
+		if sendErr != nil {
+			slog.Error("error sending unique link info message (admin)", "error", sendErr, "telegram_id", utils.MaskHalfInt64(customer.TelegramID))
+		}
+	}
+
+	return updatedCustomer, nil
+}
+
 func (s PaymentService) notifyPlanChange(ctx context.Context, customer *database.Customer, oldPlan string, oldExpireAt *time.Time, newPlan string, newExpireAt time.Time) error {
 	oldRank := planRank(oldPlan)
 	newRank := planRank(newPlan)

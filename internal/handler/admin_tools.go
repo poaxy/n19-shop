@@ -523,13 +523,13 @@ func (h Handler) AdminSubscriptionDurationCallbackHandler(ctx context.Context, b
 	if err != nil || (months != 1 && months != 12) {
 		return
 	}
-
-	targetCustomer, err := h.customerRepository.FindByTelegramId(ctx, targetID)
-	if err != nil || targetCustomer == nil {
+	updatedCustomer, err := h.paymentService.AdminSetSubscription(ctx, targetID, plan, months)
+	if err != nil || updatedCustomer == nil {
+		slog.Error("error updating subscription via admin", "error", err)
 		_, _ = b.EditMessageText(ctx, &bot.EditMessageTextParams{
 			ChatID:    callbackMessage.Chat.ID,
 			MessageID: callbackMessage.ID,
-			Text:      h.translation.GetText(langCode, "admin_subscription_not_found"),
+			Text:      h.translation.GetText(langCode, "admin_subscription_update_error"),
 			ParseMode: models.ParseModeHTML,
 			ReplyMarkup: models.InlineKeyboardMarkup{
 				InlineKeyboard: [][]models.InlineKeyboardButton{
@@ -540,31 +540,16 @@ func (h Handler) AdminSubscriptionDurationCallbackHandler(ctx context.Context, b
 		return
 	}
 
-	now := time.Now().UTC()
-	days := config.DaysInMonth() * months
-	expireAt := now.Add(time.Duration(days) * 24 * time.Hour)
-
-	updates := map[string]interface{}{
-		"plan":      plan,
-		"expire_at": expireAt,
-	}
-
-	if err := h.customerRepository.UpdateFields(ctx, targetCustomer.ID, updates); err != nil {
-		slog.Error("error updating subscription", "error", err)
-		_, _ = b.EditMessageText(ctx, &bot.EditMessageTextParams{
-			ChatID:    callbackMessage.Chat.ID,
-			MessageID: callbackMessage.ID,
-			Text:      h.translation.GetText(langCode, "admin_subscription_update_error"),
-			ParseMode: models.ParseModeHTML,
-		})
-		return
+	expireAtStr := h.translation.GetText(langCode, "profile_no_subscription")
+	if updatedCustomer.ExpireAt != nil {
+		expireAtStr = updatedCustomer.ExpireAt.Format("02.01.2006 15:04")
 	}
 
 	summary := fmt.Sprintf(
 		h.translation.GetText(langCode, "admin_subscription_updated"),
-		targetCustomer.TelegramID,
+		updatedCustomer.TelegramID,
 		plan,
-		expireAt.Format("02.01.2006 15:04"),
+		expireAtStr,
 	)
 
 	_, _ = b.EditMessageText(ctx, &bot.EditMessageTextParams{
