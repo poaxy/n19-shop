@@ -162,7 +162,7 @@ func (r *Client) RevokeUserSubscriptionByTelegramId(ctx context.Context, telegra
 		existingUser = &users[0]
 	}
 
-	_, err = r.client.Users().RevokeUserSubscription(ctx, &remapi.RevokeUserSubscriptionBody{}, existingUser.UUID.String())
+	_, err = r.client.Users().RevokeUserSubscription(ctx, &remapi.RevokeUserSubscriptionBodyDto{}, existingUser.UUID.String())
 	if err != nil {
 		return err
 	}
