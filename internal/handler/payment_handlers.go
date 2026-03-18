@@ -362,8 +362,26 @@ func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update 
 		},
 	})
 	if err != nil {
-		slog.Error("Error editing message for payment", "error", err)
-		return
+		// One quick retry for transient Telegram API connection resets.
+		if isTransientTelegramNetError(err) {
+			time.Sleep(250 * time.Millisecond)
+			message, err = b.EditMessageReplyMarkup(paymentCtx, &bot.EditMessageReplyMarkupParams{
+				ChatID:    callback.Chat.ID,
+				MessageID: callback.ID,
+				ReplyMarkup: models.InlineKeyboardMarkup{
+					InlineKeyboard: [][]models.InlineKeyboardButton{
+						{
+							{Text: h.translation.GetText(langCode, "pay_button"), URL: paymentURL},
+							{Text: h.translation.GetText(langCode, "back_button"), CallbackData: backCallback},
+						},
+					},
+				},
+			})
+		}
+		if err != nil {
+			slog.Error("Error editing message for payment", "error", err)
+			return
+		}
 	}
 	h.cache.Set(purchaseID, message.ID)
 }

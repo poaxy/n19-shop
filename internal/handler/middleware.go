@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"strings"
 
 	"log/slog"
 
@@ -129,4 +130,39 @@ func (h Handler) SuspiciousUserFilterMiddleware(next bot.HandlerFunc) bot.Handle
 
 		next(ctx, b, update)
 	}
+}
+
+// AckCallbackQueryMiddleware acknowledges callback queries quickly so the Telegram client
+// stops showing the "loading" state even if a subsequent API call fails transiently.
+func (h Handler) AckCallbackQueryMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
+	return func(ctx context.Context, b *bot.Bot, update *models.Update) {
+		if update != nil && update.CallbackQuery != nil {
+			// Best-effort: ignore errors (network issues, already answered, etc.).
+			_, _ = b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+				CallbackQueryID: update.CallbackQuery.ID,
+			})
+		}
+		next(ctx, b, update)
+	}
+}
+
+func isTransientTelegramNetError(err error) bool {
+	if err == nil {
+		return false
+	}
+	// go-telegram/bot wraps errors; use substring matching for common transient cases.
+	msg := err.Error()
+	if strings.Contains(msg, "connection reset by peer") {
+		return true
+	}
+	if strings.Contains(msg, "TLS handshake timeout") {
+		return true
+	}
+	if strings.Contains(msg, "i/o timeout") {
+		return true
+	}
+	if strings.Contains(msg, "context deadline exceeded") {
+		return true
+	}
+	return false
 }

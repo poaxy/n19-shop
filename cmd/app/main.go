@@ -21,6 +21,7 @@ import (
 	"remnawave-tg-shop-bot/internal/remnawave"
 	"remnawave-tg-shop-bot/internal/stripe"
 	"remnawave-tg-shop-bot/internal/sync"
+	"remnawave-tg-shop-bot/internal/telegramapi"
 	"remnawave-tg-shop-bot/internal/translation"
 	"remnawave-tg-shop-bot/internal/tribute"
 	"remnawave-tg-shop-bot/internal/yookasa"
@@ -87,7 +88,11 @@ func main() {
 		stripeClient = stripe.NewClient(config.StripeSecretKey(), config.StripeWebhookSecret())
 		slog.Info("Stripe payment enabled")
 	}
-	b, err := bot.New(config.TelegramToken(), bot.WithWorkers(3))
+	botOpts := []bot.Option{bot.WithWorkers(3)}
+	if config.IsTelegramWebhookEnabled() && config.TelegramWebhookSecretToken() != "" {
+		botOpts = append(botOpts, bot.WithWebhookSecretToken(config.TelegramWebhookSecretToken()))
+	}
+	b, err := bot.New(config.TelegramToken(), botOpts...)
 	if err != nil {
 		panic(err)
 	}
@@ -149,17 +154,17 @@ func main() {
 	// Admin generic text handler should run for all admin text messages (no specific command).
 	b.RegisterHandler(bot.HandlerTypeMessageText, "", bot.MatchTypePrefix, h.AdminMessageHandler, isAdminMiddleware)
 
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackReferral, bot.MatchTypeExact, h.ReferralCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackBuy, bot.MatchTypeExact, h.BuyCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackPlan, bot.MatchTypePrefix, h.PlanCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackTrial, bot.MatchTypeExact, h.TrialCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackActivateTrial, bot.MatchTypeExact, h.ActivateTrialCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackStart, bot.MatchTypeExact, h.StartCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackProfile, bot.MatchTypeExact, h.ProfileCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackLanguage, bot.MatchTypeExact, h.LanguageMenuCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackMyLinks, bot.MatchTypeExact, h.MyLinksCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackGuides, bot.MatchTypeExact, h.GuidesCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackGuideHowTo, bot.MatchTypeExact, h.GuideHowToConnectCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackReferral, bot.MatchTypeExact, h.ReferralCallbackHandler, h.AckCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackBuy, bot.MatchTypeExact, h.BuyCallbackHandler, h.AckCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackPlan, bot.MatchTypePrefix, h.PlanCallbackHandler, h.AckCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackTrial, bot.MatchTypeExact, h.TrialCallbackHandler, h.AckCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackActivateTrial, bot.MatchTypeExact, h.ActivateTrialCallbackHandler, h.AckCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackStart, bot.MatchTypeExact, h.StartCallbackHandler, h.AckCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackProfile, bot.MatchTypeExact, h.ProfileCallbackHandler, h.AckCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackLanguage, bot.MatchTypeExact, h.LanguageMenuCallbackHandler, h.AckCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackMyLinks, bot.MatchTypeExact, h.MyLinksCallbackHandler, h.AckCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackGuides, bot.MatchTypeExact, h.GuidesCallbackHandler, h.AckCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackGuideHowTo, bot.MatchTypeExact, h.GuideHowToConnectCallbackHandler, h.AckCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackAdminNotify, bot.MatchTypeExact, h.AdminNotifyCallbackHandler, isAdminMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackAdminNotifyAll, bot.MatchTypeExact, h.AdminNotifyAllCallbackHandler, isAdminMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackAdminNotifyDirect, bot.MatchTypeExact, h.AdminNotifyDirectCallbackHandler, isAdminMiddleware)
@@ -178,11 +183,11 @@ func main() {
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackAdminSubscriptionManage, bot.MatchTypeExact, h.AdminSubscriptionManageCallbackHandler, isAdminMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackAdminSubscriptionActionPrefix, bot.MatchTypePrefix, h.AdminSubscriptionActionCallbackHandler, isAdminMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackAdminSubscriptionDurationPrefix, bot.MatchTypePrefix, h.AdminSubscriptionDurationCallbackHandler, isAdminMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackSell, bot.MatchTypePrefix, h.SellCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackLanguageSelectPrefix, bot.MatchTypePrefix, h.LanguageSelectCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackDirect, bot.MatchTypePrefix, h.DirectPaymentCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackConnect, bot.MatchTypeExact, h.ConnectCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackPayment, bot.MatchTypePrefix, h.PaymentCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackSell, bot.MatchTypePrefix, h.SellCallbackHandler, h.AckCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackLanguageSelectPrefix, bot.MatchTypePrefix, h.LanguageSelectCallbackHandler, h.AckCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackDirect, bot.MatchTypePrefix, h.DirectPaymentCallbackHandler, h.AckCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackConnect, bot.MatchTypeExact, h.ConnectCallbackHandler, h.AckCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackPayment, bot.MatchTypePrefix, h.PaymentCallbackHandler, h.AckCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandlerMatchFunc(func(update *models.Update) bool {
 		return update.PreCheckoutQuery != nil
 	}, h.PreCheckoutCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
@@ -193,6 +198,9 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.Handle("/healthcheck", fullHealthHandler(pool, remnawaveClient))
+	if config.IsTelegramWebhookEnabled() {
+		mux.Handle(config.TelegramWebhookPath(), b.WebhookHandler())
+	}
 	if config.GetTributeWebHookUrl() != "" {
 		tributeHandler := tribute.NewClient(paymentService, customerRepository)
 		mux.Handle(config.GetTributeWebHookUrl(), tributeHandler.WebHookHandler())
@@ -213,7 +221,28 @@ func main() {
 	}()
 
 	slog.Info("Bot is starting...")
-	b.Start(ctx)
+	if config.IsTelegramWebhookEnabled() {
+		webhookURL := config.TelegramWebhookURL()
+		if webhookURL == "" {
+			log.Fatalf("Webhook enabled but TELEGRAM_WEBHOOK_BASE_URL is empty")
+		}
+		setCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		if err := telegramapi.SetWebhook(setCtx, config.TelegramToken(), webhookURL, config.TelegramWebhookSecretToken()); err != nil {
+			cancel()
+			log.Fatalf("Telegram setWebhook failed: %v", err)
+		}
+		cancel()
+
+		go b.StartWebhook(ctx)
+		<-ctx.Done()
+
+		// Best-effort cleanup; do not block shutdown.
+		delCtx, delCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_ = telegramapi.DeleteWebhook(delCtx, config.TelegramToken())
+		delCancel()
+	} else {
+		b.Start(ctx)
+	}
 
 	log.Println("Shutting down health server…")
 	shutdownCtx, shutCancel := context.WithTimeout(context.Background(), 5*time.Second)

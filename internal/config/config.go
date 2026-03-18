@@ -58,6 +58,9 @@ type config struct {
 	stripeSuccessURL, stripeCancelURL                         string
 	stripePrice1, stripePrice3, stripePrice6, stripePrice12   int
 	premiumInternalSquads                                     map[uuid.UUID]uuid.UUID
+	telegramWebhookBaseURL                                    string
+	telegramWebhookPath                                       string
+	telegramWebhookSecretToken                                string
 }
 
 var conf config
@@ -211,6 +214,37 @@ func StarsPrice(month int) int {
 }
 func TelegramToken() string {
 	return conf.telegramToken
+}
+
+func TelegramWebhookBaseURL() string {
+	return conf.telegramWebhookBaseURL
+}
+
+func TelegramWebhookPath() string {
+	if conf.telegramWebhookPath == "" {
+		return "/telegram/webhook"
+	}
+	return conf.telegramWebhookPath
+}
+
+func TelegramWebhookSecretToken() string {
+	return conf.telegramWebhookSecretToken
+}
+
+func IsTelegramWebhookEnabled() bool {
+	return conf.telegramWebhookBaseURL != ""
+}
+
+func TelegramWebhookURL() string {
+	if conf.telegramWebhookBaseURL == "" {
+		return ""
+	}
+	base := strings.TrimRight(conf.telegramWebhookBaseURL, "/")
+	path := TelegramWebhookPath()
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	return base + path
 }
 func RemnawaveUrl() string {
 	return conf.remnawaveUrl
@@ -400,6 +434,10 @@ func InitConfig() {
 	}
 
 	conf.telegramToken = mustEnv("TELEGRAM_TOKEN")
+
+	conf.telegramWebhookBaseURL = envStringDefault("TELEGRAM_WEBHOOK_BASE_URL", "")
+	conf.telegramWebhookPath = envStringDefault("TELEGRAM_WEBHOOK_PATH", "/telegram/webhook")
+	conf.telegramWebhookSecretToken = envStringDefault("TELEGRAM_WEBHOOK_SECRET_TOKEN", "")
 
 	conf.isWebAppLinkEnabled = func() bool {
 		isWebAppLinkEnabled := os.Getenv("IS_WEB_APP_LINK") == "true"
