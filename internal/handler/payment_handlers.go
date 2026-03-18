@@ -11,23 +11,12 @@ import (
 	"github.com/go-telegram/bot/models"
 	"log/slog"
 
+	"remnawave-tg-shop-bot/internal/ctxkeys"
 	"remnawave-tg-shop-bot/internal/config"
 	"remnawave-tg-shop-bot/internal/database"
+	"remnawave-tg-shop-bot/internal/domain"
 	"remnawave-tg-shop-bot/internal/pricing"
 )
-
-func planRank(plan string) int {
-	switch plan {
-	case "free":
-		return 1
-	case "lite":
-		return 2
-	case "premium":
-		return 3
-	default:
-		return 0
-	}
-}
 
 func getActivePlan(customer *database.Customer, now time.Time) string {
 	if customer == nil {
@@ -51,11 +40,11 @@ func (h Handler) BuyCallbackHandler(ctx context.Context, b *bot.Bot, update *mod
 	langCode := h.getUserLanguage(customer, &update.CallbackQuery.From)
 
 	currentPlan := getActivePlan(customer, time.Now().UTC())
-	currentRank := planRank(currentPlan)
+	currentRank := domain.PlanRank(currentPlan)
 
 	var keyboard [][]models.InlineKeyboardButton
 
-	liteRank := planRank("lite")
+	liteRank := domain.PlanRank("lite")
 	if liteRank >= currentRank {
 		keyboard = append(keyboard, []models.InlineKeyboardButton{
 			{
@@ -65,7 +54,7 @@ func (h Handler) BuyCallbackHandler(ctx context.Context, b *bot.Bot, update *mod
 		})
 	}
 
-	premiumRank := planRank("premium")
+	premiumRank := domain.PlanRank("premium")
 	if premiumRank >= currentRank {
 		keyboard = append(keyboard, []models.InlineKeyboardButton{
 			{
@@ -320,7 +309,7 @@ func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update 
 		price = h.pricingService.GetEffectivePrice(plan, month, pricing.MethodDirect)
 	}
 
-	paymentCtx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	paymentCtx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 	customer, err := h.customerRepository.FindByTelegramId(paymentCtx, callback.Chat.ID)
 	if err != nil {
@@ -334,7 +323,7 @@ func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update 
 
 	now := time.Now().UTC()
 	currentPlan := getActivePlan(customer, now)
-	if planRank(plan) < planRank(currentPlan) {
+	if domain.PlanRank(plan) < domain.PlanRank(currentPlan) {
 		langCode := h.getUserLanguage(customer, &update.CallbackQuery.From)
 		_, sendErr := b.SendMessage(paymentCtx, &bot.SendMessageParams{
 			ChatID:    callback.Chat.ID,
@@ -347,8 +336,8 @@ func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update 
 		return
 	}
 
-	ctxWithUsername := context.WithValue(paymentCtx, "username", update.CallbackQuery.From.Username)
-	ctxWithPlan := context.WithValue(ctxWithUsername, "plan", plan)
+	ctxWithUsername := context.WithValue(paymentCtx, ctxkeys.Username, update.CallbackQuery.From.Username)
+	ctxWithPlan := context.WithValue(ctxWithUsername, ctxkeys.Plan, plan)
 	paymentURL, purchaseID, err := h.paymentService.CreatePurchase(ctxWithPlan, float64(price), month, customer, invoiceType)
 	if err != nil {
 		slog.Error("Error creating payment", "error", err)
@@ -356,9 +345,9 @@ func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update 
 	}
 
 	langCode := h.getUserLanguage(customer, &update.CallbackQuery.From)
-	backCallback := fmt.Sprintf("%s?month=%d&amount=%d", CallbackSell, month, price)
+	backCallback := fmt.Sprintf("%s?plan=%s&month=%d&amount=%d", CallbackSell, plan, month, price)
 	if invoiceType != database.InvoiceTypeTelegram && hasDirectPaymentMethods() && config.IsTelegramStarsEnabled() {
-		backCallback = fmt.Sprintf("%s?month=%d&amount=%d", CallbackDirect, month, price)
+		backCallback = fmt.Sprintf("%s?plan=%s&month=%d&amount=%d", CallbackDirect, plan, month, price)
 	}
 	message, err := b.EditMessageReplyMarkup(paymentCtx, &bot.EditMessageReplyMarkupParams{
 		ChatID:    callback.Chat.ID,
@@ -401,9 +390,9 @@ func (h Handler) SuccessPaymentHandler(ctx context.Context, b *bot.Bot, update *
 		return
 	}
 	username := payload[1]
-	ctxWithUsername := context.WithValue(ctx, "username", username)
+	ctxWithUsername := context.WithValue(ctx, ctxkeys.Username, username)
 	if len(payload) >= 3 && payload[2] != "" {
-		ctxWithUsername = context.WithValue(ctxWithUsername, "plan", payload[2])
+		ctxWithUsername = context.WithValue(ctxWithUsername, ctxkeys.Plan, payload[2])
 	}
 	if err := h.paymentService.ProcessPurchaseById(ctxWithUsername, purchaseID); err != nil {
 		slog.Error("Error processing purchase", "error", err, "purchaseID", purchaseID)

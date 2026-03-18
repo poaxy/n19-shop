@@ -193,26 +193,14 @@ func (cr *CustomerRepository) UpdateFields(ctx context.Context, id int64, update
 		return fmt.Errorf("failed to build update query: %w", err)
 	}
 
-	tx, err := cr.pool.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-
 	result, err := cr.pool.Exec(ctx, sql, args...)
 	if err != nil {
-		if err := tx.Rollback(ctx); err != nil {
-			return fmt.Errorf("failed to rollback transaction: %w", err)
-		}
 		return fmt.Errorf("failed to update customer: %w", err)
 	}
 
 	rowsAffected := result.RowsAffected()
 	if rowsAffected == 0 {
 		return fmt.Errorf("no customer found with id: %s", utils.MaskHalfInt64(id))
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 	return nil
 }
@@ -274,21 +262,9 @@ func (cr *CustomerRepository) CreateBatch(ctx context.Context, customers []Custo
 		return fmt.Errorf("failed to build batch insert query: %w", err)
 	}
 
-	tx, err := cr.pool.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-
 	_, err = cr.pool.Exec(ctx, sqlStr, args...)
 	if err != nil {
-		if err := tx.Rollback(ctx); err != nil {
-			return fmt.Errorf("failed to rollback transaction: %w", err)
-		}
 		return fmt.Errorf("failed to execute batch insert: %w", err)
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 	return nil
 }
@@ -308,20 +284,9 @@ func (cr *CustomerRepository) UpdateBatch(ctx context.Context, customers []Custo
 	}
 	query += ") AS c(telegram_id, expire_at, subscription_link) WHERE customer.telegram_id = c.telegram_id"
 
-	tx, err := cr.pool.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
 	_, err = cr.pool.Exec(ctx, query, args...)
 	if err != nil {
-		if err := tx.Rollback(ctx); err != nil {
-			return fmt.Errorf("failed to rollback transaction: %w", err)
-		}
 		return fmt.Errorf("failed to execute batch update: %w", err)
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 	return nil
 }

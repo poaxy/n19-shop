@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"remnawave-tg-shop-bot/internal/ctxkeys"
 	"strconv"
 	"strings"
 	"time"
@@ -40,7 +41,7 @@ func (c *Client) CreateCheckoutSession(ctx context.Context, amountCents int, mon
 	form.Set("success_url", successURL)
 	form.Set("cancel_url", cancelURL)
 	form.Set("metadata[purchase_id]", strconv.FormatInt(purchaseID, 10))
-	if plan, ok := ctx.Value("plan").(string); ok && plan != "" {
+	if plan, ok := ctx.Value(ctxkeys.Plan).(string); ok && plan != "" {
 		form.Set("metadata[plan]", plan)
 	}
 	form.Set("line_items[0][price_data][currency]", "usd")

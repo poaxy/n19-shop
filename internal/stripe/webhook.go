@@ -11,6 +11,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"remnawave-tg-shop-bot/internal/ctxkeys"
 	"strconv"
 	"strings"
 	"time"
@@ -27,7 +28,7 @@ func (c *Client) VerifyWebhookSignature(body []byte, signatureHeader string) err
 	// Header format: "t=1234567890,v1=hexsignature" (may have multiple v1=)
 	parts := strings.Split(signatureHeader, ",")
 	var t int64
-	var v1 string
+	var v1s []string
 	for _, p := range parts {
 		kv := strings.SplitN(strings.TrimSpace(p), "=", 2)
 		if len(kv) != 2 {
@@ -37,10 +38,12 @@ func (c *Client) VerifyWebhookSignature(body []byte, signatureHeader string) err
 		case "t":
 			t, _ = strconv.ParseInt(kv[1], 10, 64)
 		case "v1":
-			v1 = kv[1]
+			if kv[1] != "" {
+				v1s = append(v1s, kv[1])
+			}
 		}
 	}
-	if v1 == "" || t == 0 {
+	if len(v1s) == 0 || t == 0 {
 		return errors.New("invalid stripe signature format")
 	}
 	// Reject old events
@@ -51,10 +54,12 @@ func (c *Client) VerifyWebhookSignature(body []byte, signatureHeader string) err
 	mac := hmac.New(sha256.New, []byte(c.webhookSecret))
 	mac.Write([]byte(payload))
 	expected := hex.EncodeToString(mac.Sum(nil))
-	if !hmac.Equal([]byte(expected), []byte(v1)) {
-		return errors.New("stripe signature mismatch")
+	for _, v1 := range v1s {
+		if hmac.Equal([]byte(expected), []byte(v1)) {
+			return nil
+		}
 	}
-	return nil
+	return errors.New("stripe signature mismatch")
 }
 
 // checkoutSessionCompletedEvent is the subset of the webhook event we need.
@@ -125,7 +130,7 @@ func WebhookHandler(c *Client, fulfill FulfillFunc) http.Handler {
 
 		ctx := r.Context()
 		if plan, ok := ev.Data.Object.Metadata["plan"]; ok && plan != "" {
-			ctx = context.WithValue(ctx, "plan", plan)
+			ctx = context.WithValue(ctx, ctxkeys.Plan, plan)
 		}
 		if err := fulfill(ctx, purchaseID); err != nil {
 			slog.Error("Stripe webhook: fulfill failed", "purchase_id", purchaseID, "error", err)

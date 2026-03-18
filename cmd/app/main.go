@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"remnawave-tg-shop-bot/internal/cache"
 	"remnawave-tg-shop-bot/internal/config"
+	"remnawave-tg-shop-bot/internal/ctxkeys"
 	"remnawave-tg-shop-bot/internal/cryptopay"
 	"remnawave-tg-shop-bot/internal/database"
 	"remnawave-tg-shop-bot/internal/handler"
@@ -396,9 +397,9 @@ func checkYookasaInvoice(
 		if err != nil {
 			slog.Error("Error parsing purchaseId", "invoiceId", invoice.ID, "error", err)
 		}
-		ctxWithValue := context.WithValue(ctx, "username", invoice.Metadata["username"])
+		ctxWithValue := context.WithValue(ctx, ctxkeys.Username, invoice.Metadata["username"])
 		if plan, ok := invoice.Metadata["plan"]; ok && plan != "" {
-			ctxWithValue = context.WithValue(ctxWithValue, "plan", plan)
+			ctxWithValue = context.WithValue(ctxWithValue, ctxkeys.Plan, plan)
 		}
 		err = paymentService.ProcessPurchaseById(ctxWithValue, int64(purchaseId))
 		if err != nil {
@@ -457,11 +458,11 @@ func checkCryptoPayInvoice(
 			}
 			purchaseID, err := strconv.Atoi(strings.Split(payload[0], "=")[1])
 			username := strings.Split(payload[1], "=")[1]
-			ctxWithUsername := context.WithValue(ctx, "username", username)
+			ctxWithUsername := context.WithValue(ctx, ctxkeys.Username, username)
 			if len(payload) >= 3 && strings.HasPrefix(payload[2], "plan=") {
 				plan := strings.Split(payload[2], "=")[1]
 				if plan != "" {
-					ctxWithUsername = context.WithValue(ctxWithUsername, "plan", plan)
+					ctxWithUsername = context.WithValue(ctxWithUsername, ctxkeys.Plan, plan)
 				}
 			}
 			err = paymentService.ProcessPurchaseById(ctxWithUsername, int64(purchaseID))

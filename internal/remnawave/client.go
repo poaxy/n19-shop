@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"remnawave-tg-shop-bot/internal/ctxkeys"
 	"remnawave-tg-shop-bot/internal/config"
 	"remnawave-tg-shop-bot/utils"
 	"strconv"
@@ -209,7 +210,7 @@ func selectInternalSquads(ctx context.Context, resp *remapi.InternalSquadsRespon
 	if isTrialUser {
 		selectedSquads = config.TrialInternalSquads()
 	} else {
-		if plan, ok := ctx.Value("plan").(string); ok && plan == "premium" {
+		if plan, ok := ctx.Value(ctxkeys.Plan).(string); ok && plan == "premium" {
 			if premium := config.PremiumInternalSquads(); premium != nil && len(premium) > 0 {
 				selectedSquads = premium
 			}
@@ -265,8 +266,8 @@ func (r *Client) updateUser(ctx context.Context, existingUser *remapi.User, traf
 	}
 
 	var username string
-	if ctx.Value("username") != nil {
-		username = ctx.Value("username").(string)
+	if ctx.Value(ctxkeys.Username) != nil {
+		username = ctx.Value(ctxkeys.Username).(string)
 		userUpdate.Description = remapi.NewOptNilString(username)
 	} else {
 		username = ""
@@ -350,8 +351,8 @@ func (r *Client) SetUserSubscriptionExactByTelegramId(ctx context.Context, teleg
 	}
 
 	var username string
-	if ctx.Value("username") != nil {
-		username = ctx.Value("username").(string)
+	if ctx.Value(ctxkeys.Username) != nil {
+		username = ctx.Value(ctxkeys.Username).(string)
 		userUpdate.Description = remapi.NewOptNilString(username)
 	} else {
 		username = ""
@@ -414,9 +415,9 @@ func (r *Client) createUser(ctx context.Context, customerId int64, telegramId in
 	}
 
 	var tgUsername string
-	if ctx.Value("username") != nil {
-		tgUsername = ctx.Value("username").(string)
-		createUserRequestDto.Description = remapi.NewOptString(ctx.Value("username").(string))
+	if ctx.Value(ctxkeys.Username) != nil {
+		tgUsername = ctx.Value(ctxkeys.Username).(string)
+		createUserRequestDto.Description = remapi.NewOptString(ctx.Value(ctxkeys.Username).(string))
 	} else {
 		tgUsername = ""
 	}

@@ -196,12 +196,12 @@ func (p *PurchaseRepository) UpdateFields(ctx context.Context, id int64, updates
 
 	result, err := p.pool.Exec(ctx, sql, args...)
 	if err != nil {
-		return fmt.Errorf("failed to update customer: %w", err)
+		return fmt.Errorf("failed to update purchase: %w", err)
 	}
 
 	rowsAffected := result.RowsAffected()
 	if rowsAffected == 0 {
-		return fmt.Errorf("no customer found with id: %d", id)
+		return fmt.Errorf("no purchase found with id: %d", id)
 	}
 
 	return nil

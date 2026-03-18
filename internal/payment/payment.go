@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"log/slog"
 	"remnawave-tg-shop-bot/internal/cache"
+	"remnawave-tg-shop-bot/internal/ctxkeys"
 	"remnawave-tg-shop-bot/internal/config"
 	"remnawave-tg-shop-bot/internal/cryptopay"
 	"remnawave-tg-shop-bot/internal/database"
+	"remnawave-tg-shop-bot/internal/domain"
 	"remnawave-tg-shop-bot/internal/moynalog"
 	"remnawave-tg-shop-bot/internal/remnawave"
 	"remnawave-tg-shop-bot/internal/stripe"
@@ -64,19 +66,6 @@ func NewPaymentService(
 	}
 }
 
-func planRank(plan string) int {
-	switch plan {
-	case "free":
-		return 1
-	case "lite":
-		return 2
-	case "premium":
-		return 3
-	default:
-		return 0
-	}
-}
-
 func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int64) error {
 	purchase, err := s.purchaseRepository.FindById(ctx, purchaseId)
 	if err != nil {
@@ -113,13 +102,13 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 	previousLinkWasEmpty := customer.SubscriptionLink == nil || (customer.SubscriptionLink != nil && *customer.SubscriptionLink == "")
 
 	// Determine plan from context (default to lite)
-	plan, _ := ctx.Value("plan").(string)
+	plan, _ := ctx.Value(ctxkeys.Plan).(string)
 	if plan == "" {
 		plan = "lite"
 	}
 
 	days := purchase.Month * config.DaysInMonth()
-	ctxWithPlan := context.WithValue(ctx, "plan", plan)
+	ctxWithPlan := context.WithValue(ctx, ctxkeys.Plan, plan)
 
 	var user *remapi.User
 
@@ -361,7 +350,7 @@ func (s PaymentService) AdminSetSubscription(ctx context.Context, telegramId int
 
 	days := months * config.DaysInMonth()
 
-	ctxWithPlan := context.WithValue(ctx, "plan", plan)
+	ctxWithPlan := context.WithValue(ctx, ctxkeys.Plan, plan)
 
 	var user *remapi.User
 
@@ -447,8 +436,8 @@ func (s PaymentService) AdminRemoveSubscription(ctx context.Context, telegramId 
 }
 
 func (s PaymentService) notifyPlanChange(ctx context.Context, customer *database.Customer, oldPlan string, oldExpireAt *time.Time, newPlan string, newExpireAt time.Time) error {
-	oldRank := planRank(oldPlan)
-	newRank := planRank(newPlan)
+	oldRank := domain.PlanRank(oldPlan)
+	newRank := domain.PlanRank(newPlan)
 
 	if newRank == 0 {
 		return nil
@@ -580,13 +569,13 @@ func (s PaymentService) createCryptoInvoice(ctx context.Context, amount float64,
 		return "", 0, err
 	}
 
-	plan, _ := ctx.Value("plan").(string)
+	plan, _ := ctx.Value(ctxkeys.Plan).(string)
 	invoice, err := s.cryptoPayClient.CreateInvoice(&cryptopay.InvoiceRequest{
 		CurrencyType:   "fiat",
 		Fiat:           "RUB",
 		Amount:         fmt.Sprintf("%d", int(amount)),
 		AcceptedAssets: "USDT",
-		Payload:        fmt.Sprintf("purchaseId=%d&username=%s&plan=%s", purchaseId, ctx.Value("username"), plan),
+		Payload:        fmt.Sprintf("purchaseId=%d&username=%s&plan=%s", purchaseId, ctx.Value(ctxkeys.Username), plan),
 		Description:    fmt.Sprintf("Subscription on %d month", months),
 		PaidBtnName:    "callback",
 		PaidBtnUrl:     config.BotURL(),
@@ -697,7 +686,7 @@ func (s PaymentService) createTelegramInvoice(ctx context.Context, amount float6
 		return "", 0, err
 	}
 
-	plan, _ := ctx.Value("plan").(string)
+	plan, _ := ctx.Value(ctxkeys.Plan).(string)
 	invoiceUrl, err := s.telegramBot.CreateInvoiceLink(ctx, &bot.CreateInvoiceLinkParams{
 		Title:    s.translation.GetText(customer.Language, "invoice_title"),
 		Currency: "XTR",
@@ -708,7 +697,7 @@ func (s PaymentService) createTelegramInvoice(ctx context.Context, amount float6
 			},
 		},
 		Description: s.translation.GetText(customer.Language, "invoice_description"),
-		Payload:     fmt.Sprintf("%d&%s&%s", purchaseId, ctx.Value("username"), plan),
+		Payload:     fmt.Sprintf("%d&%s&%s", purchaseId, ctx.Value(ctxkeys.Username), plan),
 	})
 
 	updates := map[string]interface{}{

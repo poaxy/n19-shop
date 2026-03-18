@@ -7,6 +7,7 @@ import (
 	"github.com/go-telegram/bot/models"
 	"log/slog"
 
+	"remnawave-tg-shop-bot/internal/ctxkeys"
 	"remnawave-tg-shop-bot/internal/config"
 	"remnawave-tg-shop-bot/utils"
 )
@@ -61,7 +62,7 @@ func (h Handler) ActivateTrialCallbackHandler(ctx context.Context, b *bot.Bot, u
 		return
 	}
 	callback := update.CallbackQuery.Message.Message
-	ctxWithUsername := context.WithValue(ctx, "username", update.CallbackQuery.From.Username)
+	ctxWithUsername := context.WithValue(ctx, ctxkeys.Username, update.CallbackQuery.From.Username)
 	_, err = h.paymentService.ActivateTrial(ctxWithUsername, update.CallbackQuery.From.ID)
 	langCode := h.getUserLanguage(c, &update.CallbackQuery.From)
 	_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{

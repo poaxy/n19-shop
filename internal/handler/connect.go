@@ -36,7 +36,7 @@ func (h Handler) ConnectCommandHandler(ctx context.Context, b *bot.Bot, update *
 				URL: config.GetMiniAppURL(),
 			}}})
 	} else if config.IsWepAppLinkEnabled() {
-		if customer.SubscriptionLink != nil && customer.ExpireAt.After(time.Now()) {
+		if customer.SubscriptionLink != nil && customer.ExpireAt != nil && customer.ExpireAt.After(time.Now()) {
 			markup = append(markup, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "connect_button"),
 				WebApp: &models.WebAppInfo{
 					URL: *customer.SubscriptionLink,
@@ -85,7 +85,7 @@ func (h Handler) ConnectCallbackHandler(ctx context.Context, b *bot.Bot, update 
 				URL: config.GetMiniAppURL(),
 			}}})
 	} else if config.IsWepAppLinkEnabled() {
-		if customer.SubscriptionLink != nil && customer.ExpireAt.After(time.Now()) {
+		if customer.SubscriptionLink != nil && customer.ExpireAt != nil && customer.ExpireAt.After(time.Now()) {
 			markup = append(markup, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "connect_button"),
 				WebApp: &models.WebAppInfo{
 					URL: *customer.SubscriptionLink,
@@ -128,8 +128,7 @@ func buildConnectText(customer *database.Customer, langCode string) string {
 			info.WriteString(fmt.Sprintf(subscriptionActiveText, formattedDate))
 
 			if customer.SubscriptionLink != nil && *customer.SubscriptionLink != "" {
-				if config.GetMiniAppURL() != "" || config.IsWepAppLinkEnabled() {
-				} else {
+				if config.GetMiniAppURL() == "" && !config.IsWepAppLinkEnabled() {
 					subscriptionLinkText := tm.GetText(langCode, "subscription_link")
 					info.WriteString(fmt.Sprintf(subscriptionLinkText, *customer.SubscriptionLink))
 				}

@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"remnawave-tg-shop-bot/internal/ctxkeys"
 	"remnawave-tg-shop-bot/internal/config"
 	"strconv"
 	"time"
@@ -74,9 +75,9 @@ func (c *Client) CreateInvoice(ctx context.Context, amount int, month int, custo
 	metaData := map[string]any{
 		"customerId": customerId,
 		"purchaseId": purchaseId,
-		"username":   ctx.Value("username"),
+		"username":   ctx.Value(ctxkeys.Username),
 	}
-	if plan, ok := ctx.Value("plan").(string); ok && plan != "" {
+	if plan, ok := ctx.Value(ctxkeys.Plan).(string); ok && plan != "" {
 		metaData["plan"] = plan
 	}
 
