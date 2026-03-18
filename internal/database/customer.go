@@ -284,7 +284,7 @@ func (cr *CustomerRepository) UpdateBatch(ctx context.Context, customers []Custo
 	}
 	query += ") AS c(telegram_id, expire_at, subscription_link) WHERE customer.telegram_id = c.telegram_id"
 
-	_, err = cr.pool.Exec(ctx, query, args...)
+	_, err := cr.pool.Exec(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("failed to execute batch update: %w", err)
 	}
