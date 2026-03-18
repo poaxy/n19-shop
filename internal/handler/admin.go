@@ -14,6 +14,82 @@ import (
 	"remnawave-tg-shop-bot/utils"
 )
 
+type adminOutgoingKind string
+
+const (
+	adminOutgoingText  adminOutgoingKind = "text"
+	adminOutgoingPhoto adminOutgoingKind = "photo"
+	adminOutgoingVideo adminOutgoingKind = "video"
+)
+
+type adminOutgoing struct {
+	kind    adminOutgoingKind
+	text    string
+	fileID  string
+	caption string
+}
+
+func adminOutgoingFromMessage(msg *models.Message) *adminOutgoing {
+	if msg == nil {
+		return nil
+	}
+
+	if len(msg.Photo) > 0 {
+		// Use the largest photo size (usually last).
+		p := msg.Photo[len(msg.Photo)-1]
+		return &adminOutgoing{
+			kind:    adminOutgoingPhoto,
+			fileID:  p.FileID,
+			caption: msg.Caption,
+		}
+	}
+
+	if msg.Video != nil {
+		return &adminOutgoing{
+			kind:    adminOutgoingVideo,
+			fileID:  msg.Video.FileID,
+			caption: msg.Caption,
+		}
+	}
+
+	return &adminOutgoing{
+		kind: adminOutgoingText,
+		text: msg.Text,
+	}
+}
+
+func (h Handler) sendAdminOutgoing(ctx context.Context, b *bot.Bot, chatID int64, out *adminOutgoing) error {
+	if out == nil {
+		return fmt.Errorf("empty outgoing message")
+	}
+
+	switch out.kind {
+	case adminOutgoingPhoto:
+		_, err := b.SendPhoto(ctx, &bot.SendPhotoParams{
+			ChatID:    chatID,
+			Photo:     &models.InputFileString{Data: out.fileID},
+			Caption:   out.caption,
+			ParseMode: models.ParseModeHTML,
+		})
+		return err
+	case adminOutgoingVideo:
+		_, err := b.SendVideo(ctx, &bot.SendVideoParams{
+			ChatID:    chatID,
+			Video:     &models.InputFileString{Data: out.fileID},
+			Caption:   out.caption,
+			ParseMode: models.ParseModeHTML,
+		})
+		return err
+	default:
+		_, err := b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    chatID,
+			ParseMode: models.ParseModeHTML,
+			Text:      out.text,
+		})
+		return err
+	}
+}
+
 func (h Handler) AdminNotifyCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	cb := update.CallbackQuery
 	if cb.From.ID != config.GetAdminTelegramId() {
@@ -117,7 +193,7 @@ func (h Handler) AdminMessageHandler(ctx context.Context, b *bot.Bot, update *mo
 
 	switch currentState {
 	case admin.StateAwaitingBroadcastText:
-		text := msg.Text
+		out := adminOutgoingFromMessage(msg)
 		slog.Info("admin broadcast started")
 
 		ids, err := h.customerRepository.ListAllTelegramIds(ctx)
@@ -134,11 +210,7 @@ func (h Handler) AdminMessageHandler(ctx context.Context, b *bot.Bot, update *mo
 
 		sent := 0
 		for _, id := range ids {
-			_, sendErr := b.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID:    id,
-				ParseMode: models.ParseModeHTML,
-				Text:      text,
-			})
+			sendErr := h.sendAdminOutgoing(ctx, b, id, out)
 			if sendErr != nil {
 				slog.Error("error sending broadcast message", "error", sendErr, "telegramId", utils.MaskHalfInt64(id))
 				continue
@@ -190,12 +262,8 @@ func (h Handler) AdminMessageHandler(ctx context.Context, b *bot.Bot, update *mo
 			return
 		}
 
-		text := msg.Text
-		_, err := b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    targetID,
-			ParseMode: models.ParseModeHTML,
-			Text:      text,
-		})
+		out := adminOutgoingFromMessage(msg)
+		err := h.sendAdminOutgoing(ctx, b, targetID, out)
 		if err != nil {
 			slog.Error("error sending direct admin message", "error", err, "telegramId", utils.MaskHalfInt64(targetID))
 			_, _ = b.SendMessage(ctx, &bot.SendMessageParams{
